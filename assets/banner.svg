@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="cinch  Universal agents for every harness. Init once. Pick Claude Code, Cursor, Codex, Grok, or OpenCode, then pick its skills and agents.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1016"/><stop offset="1" stop-color="#05070a"/>
+    </linearGradient>
+    <linearGradient id="rg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2ee6d6"/><stop offset="0.55" stop-color="#4c8dff"/><stop offset="1" stop-color="#a371f7"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="78%" cy="28%" r="58%">
+      <stop offset="0" stop-color="#2ee6d6" stop-opacity="0.18"/><stop offset="1" stop-color="#2ee6d6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="strap" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2ee6d6"/><stop offset="1" stop-color="#4c8dff"/>
+    </linearGradient>
+    <style>text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}</style>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#glow)"/>
+  <rect x="0" y="0" width="1280" height="640" fill="none" stroke="#161b22" stroke-width="2"/>
+
+  <text x="74" y="98" font-size="19" letter-spacing="3.2" fill="#8b949e">UNIVERSAL AGENTS · EVERY HARNESS</text>
+  <text x="74" y="126" font-size="16" letter-spacing="2" fill="#586069">one CLI · Claude Code · Cursor · Codex · Grok · OpenCode</text>
+
+  <text x="70" y="282" font-size="128" font-weight="800" letter-spacing="-4" fill="#e6edf3">cinch</text>
+  <rect x="74" y="304" width="292" height="9" rx="4" fill="url(#rg)"/>
+
+  <text x="76" y="376" font-size="34" fill="#c9d1d9">Universal agents for every harness.</text>
+  <text x="76" y="420" font-size="24" fill="#8b949e">Init once. Pick the harness. Pick its skills and agents.</text>
+
+  <!-- cinch strap / buckle mascot -->
+  <g transform="translate(980,132)">
+    <rect x="0" y="36" width="196" height="36" rx="10" fill="url(#strap)"/>
+    <rect x="148" y="18" width="52" height="72" rx="10" fill="#c9d1d9"/>
+    <rect x="158" y="28" width="32" height="52" rx="6" fill="#0b0f14"/>
+    <rect x="168" y="40" width="12" height="28" rx="3" fill="#2ee6d6"/>
+    <text x="98" y="132" font-size="18" font-weight="700" text-anchor="middle" fill="#8b949e">strap in</text>
+  </g>
+
+  <rect x="72" y="486" width="1136" height="106" rx="15" fill="#0d1117" stroke="#30363d" stroke-width="2"/>
+  <text x="102" y="532" font-size="23"><tspan fill="#8b949e">init&#160;&#160;</tspan><tspan fill="#2ee6d6">cinch init</tspan><tspan fill="#586069">  ’  harness  ’  its skills / agents / hooks</tspan></text>
+  <text x="102" y="568" font-size="23"><tspan fill="#8b949e">wired&#160;</tspan><tspan fill="#c9d1d9">Claude Code · Cursor · Codex · Grok · OpenCode</tspan></text>
+
+  <text x="1208" y="624" text-anchor="end" font-size="17" fill="#586069">MIT · no telemetry</text>
+</svg>
