@@ -1,121 +1,69 @@
-<p align="center">
-  <img src="assets/banner.svg" alt="cinch — Universal agents for every harness. Init once. Pick Claude Code, Cursor, Codex, Grok, or OpenCode, then pick its skills and agents." width="100%">
-</p>
+<div align="center">
+  <img src="assets/banner.svg" alt="cinch — Universal agents for every harness." width="100%" />
 
-<p align="center">
+  <p><strong>Universal agents and skills for every AI harness. Init once, deploy anywhere.</strong></p>
+
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ee6d6" alt="MIT license"></a>
   <a href="https://github.com/00200200/cinch/actions/workflows/ci.yml"><img src="https://github.com/00200200/cinch/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/harnesses-Claude%20Code%20·%20Cursor%20·%20Codex%20·%20Grok%20·%20OpenCode-a371f7" alt="Claude Code, Cursor, Codex, Grok, OpenCode">
-  <a href="https://github.com/00200200/cinch/stargazers"><img src="https://img.shields.io/github/stars/00200200/cinch?style=social" alt="GitHub stars"></a>
-</p>
+  <a href="https://github.com/00200200/cinch/stargazers"><img src="https://img.shields.io/github/stars/00200200/cinch?style=social&label=Star%20us!" alt="GitHub stars"></a>
+</div>
 
-# cinch
+<br />
 
-**Universal agents for every harness.**
+<div align="center">
+  <!-- Asciinema / GIF Animation Placeholder -->
+  <a href="#">
+    <img src="https://raw.githubusercontent.com/asciinema/asciicast-explorer/master/public/placeholder.gif" alt="Cinch Demo Animation" width="800">
+  </a>
+  <p><em>See how cinch configures your workspace in seconds.</em></p>
+</div>
 
-You already have skills and agents on disk — in `~/.claude`, `~/.cursor`,
-`~/.codex`, and the rest. Cinch **lists what that harness actually has**, you
-pick the ones you want, and it wires them into the project layout that harness
-expects. One `init`. No bundled marketplace. No second skill library.
+## 🚀 Why Cinch?
 
-```sh
+Stop rewriting your AI tool configurations for every new project. You already have custom skills, agents, and hooks sitting on your machine for Claude Code, Cursor, Codex, and others.
+
+**Cinch** is the universal glue. It detects your installed AI harnesses, inventories your local skills, and seamlessly wires them into your project's expected layout. No bundled marketplace, no redundant skill libraries—just one `init` to bring your favorite AI agents to any project.
+
+## ✨ Features
+
+- 🔍 **Auto-Discovery:** Automatically finds skills, agents, and hooks in your local directories (e.g., `~/.claude`, `~/.cursor`).
+- ⚡ **Zero Friction:** One command copies your selection into the correct project folder structure.
+- 🌐 **Universal Support:** Claude Code, Cursor, Codex, Grok, OpenCode, Continue, Aider, Windsurf, Cline, Gemini CLI, and GitHub Copilot.
+- 🔒 **Local First:** Operates entirely on your machine. No scraping, no telemetry, no BS.
+
+## 📦 Quick Start
+
+Run cinch interactively without installing:
+
+```bash
 uvx --from git+https://github.com/00200200/cinch cinch init
 ```
 
-<p align="center">
-  <img src="assets/harnesses.svg" alt="Claude Code, Cursor, Codex, Grok, OpenCode, plus Continue, Aider, Windsurf, Cline, Gemini CLI, GitHub Copilot" width="100%">
-</p>
+Or run non-interactively to instantly configure a workspace:
 
-<p align="center">
-  <img src="assets/demo.svg" alt="Recorded cinch stdout: cinch harnesses, cinch inventory --harness claude, cinch init attaching humanizer and reviewer" width="860">
-</p>
-
-The terminal above is **recorded stdout** from this CLI (`cinch harnesses`,
-`cinch inventory --harness claude`, `cinch init --harness claude --skills humanizer --agents reviewer --yes`).
-
----
-
-## Why this isn't another project scaffold
-
-Most init tools ship a fixed template: their agents, their hooks, their folder
-layout — tuned for one product. Switch harnesses and you start over.
-
-Cinch does the opposite:
-
-```
-harness  →  inventory on disk  →  attach  →  project wiring
-```
-
-| Step | What happens |
-| --- | --- |
-| Pick harness | Claude Code, Cursor, Codex, Grok, OpenCode, or another supported product |
-| List inventory | Skills, agents, hooks, commands, plugins, MCP **already on your machine** |
-| Attach | Copy the selection into `.claude/`, `.cursor/`, `.opencode/`, etc. |
-
-`--purpose python|ml|data|web|docs|security|agents` only **filters** that
-inventory. It does not replace it.
-
----
-
-## Install
-
-```sh
-uvx --from git+https://github.com/00200200/cinch cinch init
-```
-
-```sh
-pipx run --spec git+https://github.com/00200200/cinch cinch init
-```
-
-PyPI name is `cinch-init` (`cinch` is taken). The command is `cinch`.
-
-## Commands
-
-| Command | What it does |
-| --- | --- |
-| `cinch harnesses` | Which harnesses Cinch knows, and which are on **this machine** |
-| `cinch inventory --harness claude` | Skills, agents, hooks, commands, plugins, MCP **in that harness** |
-| `cinch init --harness cursor --skills … --yes` | Attach the selection into this repo |
-
-Non-interactive:
-
-```sh
+```bash
 uvx --from git+https://github.com/00200200/cinch cinch init \
   --harness claude --skills humanizer --agents reviewer --yes
 ```
 
-## How inventory is discovered
+## 🛠 Core Commands
 
-Cinch does not scrape a storefront. It looks at binaries on `PATH` and the
-directories each product actually uses:
+| Command | Description |
+| :--- | :--- |
+| `cinch harnesses` | Shows supported and locally installed harnesses. |
+| `cinch inventory --harness <name>` | Lists available skills, agents, hooks, etc., for a given harness. |
+| `cinch init` | Wires selected skills and agents into your current repository. |
 
-| id | Product | On-disk scan | Project wiring |
-| --- | --- | --- | --- |
-| `claude` | Claude Code | `~/.claude/{skills,agents,hooks,commands}` | `.claude/…` |
-| `cursor` | Cursor | `~/.cursor/{skills,agents,hooks}` | `.cursor/…` |
-| `codex` | Codex | `~/.codex/skills`, `~/.codex/agents` | `.agents/skills`, `.codex/agents` |
-| `grok` | Grok | `~/.grok/` | `grok-bot/…` |
-| `opencode` | OpenCode | `~/.config/opencode`, `~/.opencode` | `.opencode/…` |
-| `continue` | Continue | `~/.continue/` | `.continue/…` |
-| `aider` | Aider | `~/.aider/` | `.aider/…` |
-| `windsurf` | Windsurf | `~/.windsurf/` | `.windsurf/…` |
-| `cline` | Cline | `~/.cline/` | `.cline/…`, `.clinerules` |
-| `gemini` | Gemini CLI | `~/.gemini/` | `.gemini/…` |
-| `copilot` | GitHub Copilot | `~/.copilot/` | `.github/agents`, `prompts` |
+## 🤝 Supported Harnesses
 
-A skill is a folder with `SKILL.md`. Agents/commands are markdown (or toml).
-MCP servers are keys in the harness JSON. Codex `.system` skills are ignored.
-`--from /path/to/checkout` adds another local root; Cinch does not vendor a
-second skill library.
+<p align="center">
+  <img src="assets/harnesses.svg" alt="Supported AI Harnesses" width="100%">
+</p>
 
-`on disk` means the binary or the config dir was found. It is not a live login.
+Cinch intelligently maps your local inventory to the project wiring needed for each product. For example, it maps `~/.claude/{skills,agents}` to `.claude/…` or `~/.cursor/hooks` to `.cursor/…`.
 
-## Limits
+---
 
-- Cinch copies what it can see. It does not start Claude, Cursor, or Codex,
-  and it does not grade whether a skill is any good.
-- No fake star counts, no telemetry, no CLA.
-
-## License
-
-MIT
+<div align="center">
+  <strong>If Cinch saves you time, please consider giving it a ⭐ on GitHub!</strong>
+</div>
