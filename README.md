@@ -13,9 +13,10 @@
 
 **Universal agents for every harness.**
 
-One `init`. Pick Claude Code, Cursor, Codex, Grok, OpenCode — or another real
-harness on the machine. Cinch lists **that harness’s** skills, agents, hooks,
-and commands. You attach the ones you want.
+You already have skills and agents on disk — in `~/.claude`, `~/.cursor`,
+`~/.codex`, and the rest. Cinch **lists what that harness actually has**, you
+pick the ones you want, and it wires them into the project layout that harness
+expects. One `init`. No bundled marketplace. No second skill library.
 
 ```sh
 uvx --from git+https://github.com/00200200/cinch cinch init
@@ -32,6 +33,30 @@ uvx --from git+https://github.com/00200200/cinch cinch init
 The terminal above is **recorded stdout** from this CLI (`cinch harnesses`,
 `cinch inventory --harness claude`, `cinch init --harness claude --skills humanizer --agents reviewer --yes`).
 
+---
+
+## Why this isn't another project scaffold
+
+Most init tools ship a fixed template: their agents, their hooks, their folder
+layout — tuned for one product. Switch harnesses and you start over.
+
+Cinch does the opposite:
+
+```
+harness  →  inventory on disk  →  attach  →  project wiring
+```
+
+| Step | What happens |
+| --- | --- |
+| Pick harness | Claude Code, Cursor, Codex, Grok, OpenCode, or another supported product |
+| List inventory | Skills, agents, hooks, commands, plugins, MCP **already on your machine** |
+| Attach | Copy the selection into `.claude/`, `.cursor/`, `.opencode/`, etc. |
+
+`--purpose python|ml|data|web|docs|security|agents` only **filters** that
+inventory. It does not replace it.
+
+---
+
 ## Install
 
 ```sh
@@ -44,14 +69,7 @@ pipx run --spec git+https://github.com/00200200/cinch cinch init
 
 PyPI name is `cinch-init` (`cinch` is taken). The command is `cinch`.
 
-## The whole product
-
-```text
-cinch init
-  → pick a harness
-  → pick skills / agents / hooks that harness already has
-  → Cinch writes the files that harness expects
-```
+## Commands
 
 | Command | What it does |
 | --- | --- |
@@ -65,9 +83,6 @@ Non-interactive:
 uvx --from git+https://github.com/00200200/cinch cinch init \
   --harness claude --skills humanizer --agents reviewer --yes
 ```
-
-`--purpose python|ml|data|web|docs|security|agents` only **filters** that
-inventory. It does not replace it.
 
 ## How inventory is discovered
 
@@ -92,16 +107,6 @@ A skill is a folder with `SKILL.md`. Agents/commands are markdown (or toml).
 MCP servers are keys in the harness JSON. Codex `.system` skills are ignored.
 `--from /path/to/checkout` adds another local root; Cinch does not vendor a
 second skill library.
-
-`cinch harnesses` on the machine that recorded the demo:
-
-```text
-claude      Claude Code       on disk
-cursor      Cursor            on disk
-codex       Codex             on disk
-grok        Grok              —
-opencode    OpenCode          on disk
-```
 
 `on disk` means the binary or the config dir was found. It is not a live login.
 

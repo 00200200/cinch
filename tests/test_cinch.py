@@ -284,3 +284,67 @@ class TestCliNoninteractive:
         assert "skills" in text
         assert "hooks" in text
 
+
+class TestRecordedDemoStdout:
+    """README demo.svg must match real CLI output from a fixed fixture home."""
+
+    @pytest.fixture()
+    def demo_home(self, tmp_path: Path) -> Path:
+        home = tmp_path / "home"
+        skill(home / ".claude" / "skills", "humanizer")
+        write(home / ".claude" / "agents" / "reviewer.md", "# reviewer\n")
+        write(home / ".claude" / "hooks" / "format.sh", "#!/bin/sh\n")
+        write(home / ".claude" / "commands" / "ship.md", "# ship\n")
+        return home
+
+    def test_harnesses_header_and_rows(
+        self, demo_home: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        code = main(["harnesses", "--home", str(demo_home)])
+        assert code == 0
+        out = capsys.readouterr().out.splitlines()
+        assert out[0] == "cinch  Universal agents for every harness."
+        assert out[1] == "id          harness           this machine"
+        assert out[2] == "claude      Claude Code       on disk"
+
+    def test_inventory_sorted_by_kind_then_name(
+        self, demo_home: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        code = main(["inventory", "--harness", "claude", "--home", str(demo_home)])
+        assert code == 0
+        out = capsys.readouterr().out.splitlines()
+        assert out[0] == "cinch  Claude Code"
+        assert out[1] == "kind      name"
+        assert out[2:] == [
+            "agent     reviewer",
+            "command   ship",
+            "hook      format.sh",
+            "skill     humanizer",
+        ]
+
+    def test_init_attached_line(
+        self, demo_home: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        project = tmp_path / "app"
+        project.mkdir()
+        code = main(
+            [
+                "init",
+                str(project),
+                "--harness",
+                "claude",
+                "--skills",
+                "humanizer",
+                "--agents",
+                "reviewer",
+                "--yes",
+                "--home",
+                str(demo_home),
+            ]
+        )
+        assert code == 0
+        out = capsys.readouterr().out.splitlines()
+        assert out[0] == "cinch  Universal agents for every harness."
+        assert out[1] == "  harness   Claude Code (claude)"
+        assert out[2] == "  attached  skill:humanizer, agent:reviewer"
+
