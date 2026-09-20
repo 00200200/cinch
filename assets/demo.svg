@@ -1,38 +1,51 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 580" width="860" height="580" font-size="15" role="img" aria-label="Real cinch CLI: list harnesses, list Claude Code inventory, attach humanizer and reviewer">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" width="900" height="700" font-size="15" role="img" aria-label="cinch CLI demo: multi-target cross-harness translation from Claude Code to Cursor, Copilot, and Gemini">
   <style>
     text{font-family:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;fill:#c9d1d9}
     .dim{fill:#8b949e}.g{fill:#3fb950}.c{fill:#2ee6d6}.b{fill:#58a6ff}.m{fill:#a371f7}
-    #l1,#l2,#l3,#l4,#l5,#l6,#l7,#l8,#l9,#l10,#l11,#l12,#l13,#l14,#l15,#l16{opacity:0;animation:hold 16s infinite}
+    #l1,#l2,#l3,#l4,#l5,#l6,#l7,#l8,#l9,#l10,#l11,#l12,#l13,#l14,#l15,#l16,#l17,#l18,#l19,#l20,#l21,#l22,#l23,#l24,#l25{opacity:0;animation:hold 20s infinite}
     #l1{animation-name:r1}#l2{animation-name:r2}#l3{animation-name:r3}#l4{animation-name:r4}
     #l5{animation-name:r5}#l6{animation-name:r6}#l7{animation-name:r7}#l8{animation-name:r8}
     #l9{animation-name:r9}#l10{animation-name:r10}#l11{animation-name:r11}#l12{animation-name:r12}
     #l13{animation-name:r13}#l14{animation-name:r14}#l15{animation-name:r15}#l16{animation-name:r16}
-    @keyframes r1{0%,2%{opacity:0}4%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r2{0%,7%{opacity:0}9%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r3{0%,12%{opacity:0}14%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r4{0%,17%{opacity:0}19%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r5{0%,22%{opacity:0}24%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r6{0%,27%{opacity:0}29%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r7{0%,32%{opacity:0}34%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r8{0%,37%{opacity:0}39%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r9{0%,42%{opacity:0}44%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r10{0%,47%{opacity:0}49%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r11{0%,52%{opacity:0}54%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r12{0%,57%{opacity:0}59%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r13{0%,62%{opacity:0}64%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r14{0%,67%{opacity:0}69%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r15{0%,72%{opacity:0}74%,94%{opacity:1}100%{opacity:0}}
-    @keyframes r16{0%,77%{opacity:0}79%,94%{opacity:1}100%{opacity:0}}
+    #l17{animation-name:r17}#l18{animation-name:r18}#l19{animation-name:r19}#l20{animation-name:r20}
+    #l21{animation-name:r21}#l22{animation-name:r22}#l23{animation-name:r23}#l24{animation-name:r24}
+    #l25{animation-name:r25}
+    @keyframes r1{0%,2%{opacity:0}3%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r2{0%,5%{opacity:0}6%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r3{0%,8%{opacity:0}9%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r4{0%,11%{opacity:0}12%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r5{0%,14%{opacity:0}15%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r6{0%,17%{opacity:0}18%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r7{0%,22%{opacity:0}23%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r8{0%,25%{opacity:0}26%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r9{0%,28%{opacity:0}29%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r10{0%,31%{opacity:0}32%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r11{0%,34%{opacity:0}35%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r12{0%,37%{opacity:0}38%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r13{0%,42%{opacity:0}43%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r14{0%,45%{opacity:0}46%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r15{0%,48%{opacity:0}49%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r16{0%,51%{opacity:0}52%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r17{0%,54%{opacity:0}55%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r18{0%,57%{opacity:0}58%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r19{0%,60%{opacity:0}61%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r20{0%,63%{opacity:0}64%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r21{0%,66%{opacity:0}67%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r22{0%,69%{opacity:0}70%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r23{0%,72%{opacity:0}73%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r24{0%,75%{opacity:0}76%,92%{opacity:1}100%{opacity:0}}
+    @keyframes r25{0%,78%{opacity:0}79%,92%{opacity:1}100%{opacity:0}}
     .cur{animation:blink 1.1s steps(1) infinite}@keyframes blink{50%{opacity:0}}
   </style>
-  <rect x="6" y="6" width="848" height="568" rx="10" fill="#0d1117" stroke="#30363d"/>
-  <rect x="6" y="6" width="848" height="36" rx="10" fill="#161b22"/>
-  <rect x="6" y="30" width="848" height="12" fill="#161b22"/>
+  <rect x="6" y="6" width="888" height="688" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <rect x="6" y="6" width="888" height="36" rx="10" fill="#161b22"/>
+  <rect x="6" y="30" width="888" height="12" fill="#161b22"/>
   <circle cx="28" cy="24" r="6" fill="#ff5f56"/>
   <circle cx="48" cy="24" r="6" fill="#ffbd2e"/>
   <circle cx="68" cy="24" r="6" fill="#27c93f"/>
-  <text x="430" y="29" text-anchor="middle" class="dim">cinch &#183; recorded stdout</text>
+  <text x="450" y="29" text-anchor="middle" class="dim">cinch &#183; multi-target translation</text>
 
+  <!-- Block 1: cinch harnesses -->
   <text id="l1" x="26" y="72"><tspan class="dim">$</tspan> <tspan class="c">cinch harnesses</tspan></text>
   <text id="l2" x="26" y="100" class="c">cinch  Universal agents for every harness.</text>
   <text id="l3" x="26" y="124" class="dim">id          harness           this machine</text>
@@ -40,17 +53,28 @@
   <text id="l5" x="26" y="172"><tspan class="b">cursor</tspan>      Cursor            on disk</text>
   <text id="l6" x="26" y="196"><tspan class="m">codex</tspan>       Codex             on disk</text>
 
-  <text id="l7" x="26" y="236"><tspan class="dim">$</tspan> <tspan class="c">cinch inventory --harness claude</tspan></text>
-  <text id="l8" x="26" y="264" class="c">cinch  Claude Code</text>
-  <text id="l9" x="26" y="288" class="dim">kind      name</text>
-  <text id="l10" x="26" y="312">agent     reviewer</text>
-  <text id="l11" x="26" y="336">command   ship</text>
-  <text id="l12" x="26" y="360">hook      format.sh</text>
-  <text id="l13" x="26" y="384">skill     humanizer</text>
+  <!-- Block 2: cinch init multi-target -->
+  <text id="l7" x="26" y="236"><tspan class="dim">$</tspan> <tspan class="c">cinch init --from-harness claude --harness cursor,copilot,gemini --skills humanizer --yes</tspan></text>
+  <text id="l8" x="26" y="264" class="c">cinch  Universal agents for every harness.</text>
+  <text id="l9" x="26" y="288">  <tspan class="dim">targets</tspan>   Cursor, GitHub Copilot, Gemini CLI</text>
+  <text id="l10" x="26" y="312">  <tspan class="dim">source</tspan>    claude</text>
+  <text id="l11" x="26" y="336">  <tspan class="dim">attached</tspan>  skill:humanizer</text>
+  <text id="l12" x="26" y="360">  <tspan class="dim">project</tspan>   /home/dev/myproject</text>
 
-  <text id="l14" x="26" y="424"><tspan class="dim">$</tspan> <tspan class="c">cinch init --harness claude --skills humanizer --agents reviewer --yes</tspan></text>
-  <text id="l15" x="26" y="452" class="c">cinch  Universal agents for every harness.</text>
-  <text id="l16" x="26" y="476">  attached  skill:humanizer, agent:reviewer</text>
+  <!-- Block 3: cinch status -->
+  <text id="l13" x="26" y="400"><tspan class="dim">$</tspan> <tspan class="c">cinch status</tspan></text>
+  <text id="l14" x="26" y="428" class="c">cinch  Universal agents for every harness.</text>
+  <text id="l15" x="26" y="452">  <tspan class="dim">project</tspan>   /home/dev/myproject</text>
+  <text id="l16" x="26" y="476">  <tspan class="dim">source</tspan>    claude</text>
+  <text id="l17" x="26" y="500">  <tspan class="dim">targets</tspan>   cursor, copilot, gemini</text>
 
-  <text x="26" y="528"><tspan class="dim">$</tspan> <tspan class="cur">&#9608;</tspan></text>
+  <text id="l18" x="26" y="530" class="dim">wired files:</text>
+  <text id="l19" x="26" y="554">  <tspan class="b">[cursor  ]</tspan> skill:humanizer    .agents/skills/humanizer/SKILL.md    <tspan class="g">(synced)</tspan></text>
+  <text id="l20" x="26" y="578">  <tspan class="g">[copilot ]</tspan> skill:humanizer    .github/instructions/humanizer.instructions.md <tspan class="g">(synced)</tspan></text>
+  <text id="l21" x="26" y="602">  <tspan class="m">[gemini  ]</tspan> skill:humanizer    .gemini/commands/humanizer.toml      <tspan class="g">(synced)</tspan></text>
+
+  <text id="l22" x="26" y="632" class="g">all wired files are verified and present on disk.</text>
+
+  <!-- Blinking cursor -->
+  <text x="26" y="668"><tspan class="dim">$</tspan> <tspan class="cur">&#9608;</tspan></text>
 </svg>

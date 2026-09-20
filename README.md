@@ -7,6 +7,8 @@
     <a href="https://github.com/00200200/cinch/stargazers"><img src="https://img.shields.io/github/stars/00200200/cinch?style=social&label=Star%20Cinch" alt="GitHub stars"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ee6d6.svg" alt="MIT license"></a>
     <a href="https://github.com/00200200/cinch/actions/workflows/ci.yml"><img src="https://github.com/00200200/cinch/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
+    <a href="https://codecov.io/gh/00200200/cinch"><img src="https://codecov.io/gh/00200200/cinch/graph/badge.svg" alt="codecov"></a>
+    <a href="https://pypi.org/project/cinch-init/"><img src="https://img.shields.io/pypi/v/cinch-init.svg?color=2ee6d6" alt="PyPI"></a>
     <img src="https://img.shields.io/badge/dialects-9%20supported-8957e5.svg" alt="9 Supported Harnesses">
     <img src="https://img.shields.io/badge/astral-uv%20ready-4c8dff.svg" alt="UV Powered">
     <img src="https://img.shields.io/badge/telemetry-zero%20%2F%20local--first-3fb950.svg" alt="100% Local First">

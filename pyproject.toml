@@ -5,12 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "cinch-init"
 version = "0.1.0"
-description = "Universal agents for every harness. Init once. Claude Code, Cursor, Codex, Grok, OpenCode — pick the harness, pick its skills and agents."
+description = "Universal agents for every harness. Author once, wire everywhere — Claude Code, Cursor, Codex, Copilot, Gemini CLI, Windsurf, Cline, OpenCode, Aider."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "00200200" }]
-keywords = ["agents", "skills", "claude-code", "cursor", "codex", "opencode", "grok", "harness"]
+keywords = ["agents", "skills", "claude-code", "cursor", "codex", "copilot", "gemini", "windsurf", "cline", "opencode", "aider", "harness"]
 classifiers = [
   "Environment :: Console",
   "License :: OSI Approved :: MIT License",
@@ -29,6 +29,7 @@ Repository = "https://github.com/00200200/cinch"
 
 [project.scripts]
 cinch = "cinch.cli:main"
+cinch-init = "cinch.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cinch"]

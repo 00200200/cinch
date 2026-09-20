@@ -7,6 +7,12 @@ import json
 import sys
 from pathlib import Path
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.syntax import Syntax
+from rich.table import Table
+from rich.text import Text
+
 from cinch.catalog import HARNESS_ORDER, HARNESSES, PURPOSES
 from cinch.detect import detect_harnesses
 from cinch.plan import CinchError, parse_csv, resolve_plan
@@ -19,6 +25,8 @@ Universal agents for every harness.
 Init once. Translate and wire skills between Claude Code, Cursor, Codex,
 GitHub Copilot, Gemini CLI, Windsurf, Cline, OpenCode, and Aider.
 """
+
+console = Console()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -154,11 +162,25 @@ def _home(args: argparse.Namespace) -> Path:
 
 def _list_harnesses(args: argparse.Namespace) -> int:
     rows = detect_harnesses(home=_home(args))
-    print("cinch  " + HOOK)
-    print(f"{'id':<12}{'harness':<18}this machine")
+    if not console.is_terminal:
+        print("cinch  " + HOOK)
+        print(f"{'id':<12}{'harness':<18}this machine")
+        for row in rows:
+            mark = "on disk" if row.present else "—"
+            print(f"{row.id:<12}{row.title:<18}{mark}")
+        return 0
+
+    table = Table(title=HOOK, title_style="bold", show_edge=True)
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Harness", style="bold")
+    table.add_column("This Machine", justify="center")
     for row in rows:
-        mark = "on disk" if row.present else "—"
-        print(f"{row.id:<12}{row.title:<18}{mark}")
+        if row.present:
+            mark = Text("✓", style="green")
+        else:
+            mark = Text("—", style="dim")
+        table.add_row(row.id, row.title, mark)
+    console.print(table)
     return 0
 
 
@@ -174,13 +196,27 @@ def _inventory(args: argparse.Namespace) -> int:
         extra_roots=extra,
     )
     spec = HARNESSES[args.harness]
-    print(f"cinch  {spec.title}")
-    if not items:
-        print("  (empty inventory)")
+
+    if not console.is_terminal:
+        print(f"cinch  {spec.title}")
+        if not items:
+            print("  (empty inventory)")
+            return 0
+        print(f"{'kind':<10}name")
+        for item in items:
+            print(f"{item.kind:<10}{item.name}")
         return 0
-    print(f"{'kind':<10}name")
+
+    if not items:
+        console.print(Panel(Text("(empty inventory)", style="dim"), title=spec.title))
+        return 0
+
+    table = Table(title=spec.title, title_style="bold", show_edge=True)
+    table.add_column("Kind", style="dim")
+    table.add_column("Name", style="bold")
     for item in items:
-        print(f"{item.kind:<10}{item.name}")
+        table.add_row(item.kind, item.name)
+    console.print(table)
     return 0
 
 
@@ -226,7 +262,10 @@ def _init(args: argparse.Namespace) -> int:
         dry_run=args.dry_run,
     )
     result = apply_plan(plan)
-    print(_render_init(result))
+    if not console.is_terminal:
+        print(_render_init(result))
+    else:
+        _render_init_rich(result)
     return 0
 
 
@@ -256,6 +295,49 @@ def _render_init(result: dict) -> str:
         lines.append("  dry-run   no files written")
 
     return "\n".join(lines)
+
+
+def _render_init_rich(result: dict) -> None:
+    """Render init result as a Rich Panel (only called when console is a TTY)."""
+    body = Text()
+
+    targets = result.get("targets", [result.get("harness")])
+    if len(targets) == 1:
+        body.append("harness   ", style="dim")
+        body.append(f"{result['title']} ({result['harness']})\n", style="bold")
+    else:
+        body.append("targets   ", style="dim")
+        body.append(f"{result['title']}\n", style="bold")
+        if result.get("source_harness"):
+            body.append("source    ", style="dim")
+            body.append(f"{result['source_harness']}\n")
+
+    if result["copied"]:
+        body.append("attached  ", style="dim")
+        body.append(", ".join(result["copied"]) + "\n", style="green")
+    else:
+        body.append("attached  ", style="dim")
+        body.append("(none)\n", style="dim italic")
+
+    body.append("project   ", style="dim")
+    body.append(f"{result['project']}\n")
+
+    if result.get("skipped"):
+        for skip_msg in result["skipped"]:
+            body.append("skipped   ", style="dim")
+            body.append(f"{skip_msg}\n", style="yellow")
+
+    if result["dry_run"]:
+        body.append("dry-run   ", style="dim")
+        body.append("no files written\n", style="bold yellow")
+
+    panel = Panel(
+        body,
+        title="[bold]cinch[/bold]",
+        subtitle=HOOK,
+        border_style="blue",
+    )
+    console.print(panel)
 
 
 def _prompt_harness(*, home: Path, project: Path) -> str:
@@ -331,15 +413,64 @@ def _status(args: argparse.Namespace) -> int:
     targets = manifest.get("targets", [manifest.get("harness", "unknown")])
     results = manifest.get("results", [])
 
-    print("cinch  " + HOOK)
-    print(f"  project   {project}")
-    print(f"  source    {source}")
-    print(f"  targets   {', '.join(targets)}")
-    if not results:
-        print("  status    no items recorded in manifest")
+    if not console.is_terminal:
+        print("cinch  " + HOOK)
+        print(f"  project   {project}")
+        print(f"  source    {source}")
+        print(f"  targets   {', '.join(targets)}")
+        if not results:
+            print("  status    no items recorded in manifest")
+            return 0
+
+        print("\nwired files:")
+        missing = 0
+        for item in results:
+            rel = item.get("path", "")
+            target = item.get("target", "")
+            kind = item.get("kind", "skill")
+            name = item.get("name", "")
+            file_on_disk = project / rel
+            if file_on_disk.exists():
+                status_label = "synced"
+            else:
+                status_label = "missing"
+                missing += 1
+            print(f"  [{target:<8}] {kind}:{name:<16} {rel:<40} ({status_label})")
+
+        if missing > 0:
+            print(
+                f"\nwarning: {missing} wired file(s) missing on disk. Run 'cinch init' to repair."
+            )
+        else:
+            print("\nall wired files are verified and present on disk.")
         return 0
 
-    print("\nwired files:")
+    # Rich TTY output
+    console.print(
+        Panel(
+            f"[dim]project[/dim]   {project}\n"
+            f"[dim]source[/dim]    {source}\n"
+            f"[dim]targets[/dim]   {', '.join(targets)}",
+            title="[bold]cinch[/bold]",
+            subtitle=HOOK,
+            border_style="blue",
+        )
+    )
+
+    if not results:
+        console.print("  [dim]no items recorded in manifest[/dim]")
+        return 0
+
+    table = Table(
+        title=f"Wired Files — {project}",
+        title_style="bold",
+        show_edge=True,
+    )
+    table.add_column("Target", style="cyan", no_wrap=True)
+    table.add_column("Item", style="bold")
+    table.add_column("Path")
+    table.add_column("Status", justify="center")
+
     missing = 0
     for item in results:
         rel = item.get("path", "")
@@ -348,16 +479,29 @@ def _status(args: argparse.Namespace) -> int:
         name = item.get("name", "")
         file_on_disk = project / rel
         if file_on_disk.exists():
-            status_label = "synced"
+            status_text = Text("✓ synced", style="green")
         else:
-            status_label = "missing"
+            status_text = Text("✗ missing", style="red")
             missing += 1
-        print(f"  [{target:<8}] {kind}:{name:<16} {rel:<40} ({status_label})")
+        table.add_row(target, f"{kind}:{name}", rel, status_text)
+
+    console.print(table)
 
     if missing > 0:
-        print(f"\nwarning: {missing} wired file(s) missing on disk. Run 'cinch init' to repair.")
+        console.print(
+            Panel(
+                f"[bold red]{missing}[/bold red] wired file(s) missing on disk."
+                " Run [bold]cinch init[/bold] to repair.",
+                style="yellow",
+            )
+        )
     else:
-        print("\nall wired files are verified and present on disk.")
+        console.print(
+            Panel(
+                "[green]All wired files are verified and present on disk.[/green]",
+                style="green",
+            )
+        )
     return 0
 
 
@@ -394,11 +538,30 @@ def _preview(args: argparse.Namespace) -> int:
     adapter = get_adapter(args.target)
     rendered = adapter.render(doc)
 
-    print(f"# Cinch Preview: {args.skill} -> target dialect: {args.target}")
-    print(f"# Source: {matching[0].source}\n")
+    if not console.is_terminal:
+        print(f"# Cinch Preview: {args.skill} -> target dialect: {args.target}")
+        print(f"# Source: {matching[0].source}\n")
+        for rf in rendered:
+            print(f"--- [file: {rf.relpath}] (mode: {rf.mode}) ---")
+            print(rf.text)
+        return 0
+
+    # Rich TTY output
+    console.print(
+        Panel(
+            f"[bold]{args.skill}[/bold] → target dialect: [cyan]{args.target}[/cyan]\n"
+            f"[dim]Source: {matching[0].source}[/dim]",
+            title="[bold]Cinch Preview[/bold]",
+            border_style="blue",
+        )
+    )
     for rf in rendered:
-        print(f"--- [file: {rf.relpath}] (mode: {rf.mode}) ---")
-        print(rf.text)
+        console.print(f"\n[dim]── file: [bold]{rf.relpath}[/bold] (mode: {rf.mode}) ──[/dim]")
+        # Guess lexer from file extension
+        ext = Path(rf.relpath).suffix.lstrip(".")
+        lexer = {"md": "markdown", "toml": "toml", "json": "json", "yaml": "yaml"}.get(ext, "text")
+        syntax = Syntax(rf.text, lexer, theme="monokai", padding=1)
+        console.print(syntax)
     return 0
 
 

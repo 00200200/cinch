@@ -54,8 +54,10 @@ def collect_inventory(
         _mcp_in(add, project / name)
 
     for root in extra_roots:
+        _skills_in(add, "skill", root)
         _skills_in(add, "skill", root / "skills")
         _named_files_in(add, "agent", root / "agents")
+        _named_files_in(add, "command", root / "commands")
         _skills_in(add, "skill", root / "grok-bot" / "skills")
         _named_files_in(add, "agent", root / "grok-bot" / "agents")
 
