@@ -201,18 +201,25 @@ cinch harnesses
 cinch inventory --harness claude
 cinch inventory --harness cursor --purpose security
 
-# 3. Interactive init wizard
+# 3. Preview how a skill translates without writing any files
+cinch preview humanizer --target copilot
+cinch preview security-auditor --from-dir examples/skills --target gemini
+
+# 4. Interactive init wizard
 cinch init
 
-# 4. Multi-target cross-harness wiring (non-interactive)
+# 5. Multi-target cross-harness wiring (non-interactive)
 cinch init \
   --from-harness claude \
   --harness cursor,copilot,gemini,windsurf \
   --skills humanizer,security-auditor \
   --yes
 
-# 5. Attach from an external skills repository / checkout
-cinch init --from-dir ~/Code/maintainer-skills --harness cursor --yes
+# 6. Verify workspace sync & wired file integrity
+cinch status
+
+# 7. Attach from an external skills repository or examples checkout
+cinch init --from-dir examples/skills --harness cursor,copilot --yes
 ```
 
 ### CLI Flags

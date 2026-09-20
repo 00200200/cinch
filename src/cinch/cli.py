@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -84,6 +85,42 @@ def build_parser() -> argparse.ArgumentParser:
         help="List harnesses and which are on this machine",
         parents=[shared],
     )
+
+    status = commands.add_parser(
+        "status",
+        help="Show wired harnesses and skill sync status in a project",
+        parents=[shared],
+    )
+    status.add_argument("project", nargs="?", default=".", help="Project directory (default: cwd)")
+
+    preview = commands.add_parser(
+        "preview",
+        help="Preview how a skill renders in a target harness without writing files",
+        parents=[shared],
+    )
+    preview.add_argument("skill", help="Name of the skill, agent, or command to preview")
+    preview.add_argument(
+        "--target",
+        "--harness",
+        dest="target",
+        choices=HARNESS_ORDER,
+        default="cursor",
+        help="Target harness dialect to render (default: cursor)",
+    )
+    preview.add_argument(
+        "--from-harness",
+        choices=HARNESS_ORDER,
+        help="Source harness to look for the skill (auto-detected if omitted)",
+    )
+    preview.add_argument(
+        "--from",
+        "--from-dir",
+        dest="extra_roots",
+        action="append",
+        default=[],
+        metavar="DIR",
+        help="Extra directory to search for skills",
+    )
     return parser
 
 
@@ -101,6 +138,10 @@ def main(argv: list[str] | None = None) -> int:
             return _list_harnesses(args)
         if args.command == "inventory":
             return _inventory(args)
+        if args.command == "status":
+            return _status(args)
+        if args.command == "preview":
+            return _preview(args)
         return _init(args)
     except CinchError as exc:
         print(f"cinch: {exc}", file=sys.stderr)
@@ -272,6 +313,93 @@ def _prompt_inventory(
         return tuple(selected)
 
     return pick("skill"), pick("agent"), pick("hook"), pick("command")
+
+
+def _status(args: argparse.Namespace) -> int:
+    project = Path(args.project).expanduser().resolve()
+    manifest_path = project / ".cinch.json"
+    if not manifest_path.is_file():
+        print(f"cinch: No .cinch.json manifest found in {project}")
+        print("Run 'cinch init' to wire skills and agents into this project.")
+        return 1
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise CinchError(f"Corrupt manifest: {exc}")
+
+    source = manifest.get("source_harness", manifest.get("harness", "unknown"))
+    targets = manifest.get("targets", [manifest.get("harness", "unknown")])
+    results = manifest.get("results", [])
+
+    print("cinch  " + HOOK)
+    print(f"  project   {project}")
+    print(f"  source    {source}")
+    print(f"  targets   {', '.join(targets)}")
+    if not results:
+        print("  status    no items recorded in manifest")
+        return 0
+
+    print("\nwired files:")
+    missing = 0
+    for item in results:
+        rel = item.get("path", "")
+        target = item.get("target", "")
+        kind = item.get("kind", "skill")
+        name = item.get("name", "")
+        file_on_disk = project / rel
+        if file_on_disk.exists():
+            status_label = "synced"
+        else:
+            status_label = "missing"
+            missing += 1
+        print(f"  [{target:<8}] {kind}:{name:<16} {rel:<40} ({status_label})")
+
+    if missing > 0:
+        print(f"\nwarning: {missing} wired file(s) missing on disk. Run 'cinch init' to repair.")
+    else:
+        print("\nall wired files are verified and present on disk.")
+    return 0
+
+
+def _preview(args: argparse.Namespace) -> int:
+    from cinch.adapters import get_adapter
+    from cinch.doc import parse_doc
+    from cinch.inventory import collect_inventory
+
+    home = _home(args)
+    extra = tuple(Path(root).expanduser().resolve() for root in args.extra_roots)
+    source = args.from_harness or ("claude" if extra else None)
+
+    if source is None:
+        detected = detect_harnesses(home=home)
+        present = [h.id for h in detected if h.present]
+        if len(present) == 1:
+            source = present[0]
+        elif len(present) == 0:
+            source = "claude"
+        else:
+            source = present[0]
+
+    items = collect_inventory(
+        harness=source,
+        home=home,
+        project=Path.cwd(),
+        extra_roots=extra,
+    )
+    matching = [item for item in items if item.name == args.skill]
+    if not matching:
+        raise CinchError(f"Skill or item '{args.skill}' not found in {source} inventory.")
+
+    doc = parse_doc(matching[0])
+    adapter = get_adapter(args.target)
+    rendered = adapter.render(doc)
+
+    print(f"# Cinch Preview: {args.skill} -> target dialect: {args.target}")
+    print(f"# Source: {matching[0].source}\n")
+    for rf in rendered:
+        print(f"--- [file: {rf.relpath}] (mode: {rf.mode}) ---")
+        print(rf.text)
+    return 0
 
 
 if __name__ == "__main__":

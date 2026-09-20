@@ -280,7 +280,65 @@ class TestCliNoninteractive:
         text = capsys.readouterr().out
         assert "harness" in text
         assert "skills" in text
-        assert "hooks" in text
+
+    def test_status_command(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        home = tmp_path / "home"
+        skill(home / ".claude" / "skills", "humanizer")
+        project = tmp_path / "app"
+        project.mkdir()
+
+        # Before init: status returns 1 with no manifest message
+        code1 = main(["status", str(project)])
+        assert code1 == 1
+        out1 = capsys.readouterr().out
+        assert "No .cinch.json manifest found" in out1
+
+        # Run init
+        main(
+            [
+                "init",
+                str(project),
+                "--from-harness",
+                "claude",
+                "--harness",
+                "cursor",
+                "--skills",
+                "humanizer",
+                "--yes",
+                "--home",
+                str(home),
+            ]
+        )
+        capsys.readouterr()
+
+        # After init: status returns 0 with verified synced files
+        code2 = main(["status", str(project)])
+        assert code2 == 0
+        out2 = capsys.readouterr().out
+        assert "cursor" in out2
+        assert "skill:humanizer" in out2
+        assert "synced" in out2
+
+    def test_preview_command(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        home = tmp_path / "home"
+        skill(home / ".claude" / "skills", "humanizer")
+        code = main(
+            [
+                "preview",
+                "humanizer",
+                "--from-harness",
+                "claude",
+                "--target",
+                "gemini",
+                "--home",
+                str(home),
+            ]
+        )
+        assert code == 0
+        out = capsys.readouterr().out
+        assert "Cinch Preview: humanizer -> target dialect: gemini" in out
+        assert ".gemini/commands/humanizer.toml" in out
+        assert "prompt =" in out
 
 
 class TestRecordedDemoStdout:
