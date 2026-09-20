@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from cinch.catalog import HARNESSES, tags_for
-from cinch.plan import CinchError
+from cinch.errors import CinchError
 
 
 @dataclass(frozen=True)

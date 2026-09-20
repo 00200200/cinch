@@ -8,3 +8,5 @@
 __pycache__/
 dist/
 uv.lock
+.serena/
+.claude/

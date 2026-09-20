@@ -1,69 +1,284 @@
 <div align="center">
-  <img src="assets/banner.svg" alt="cinch — Universal agents for every harness." width="100%" />
+  <img src="assets/banner.svg" alt="cinch — Universal agents and skills for every harness." width="100%" />
 
-  <p><strong>Universal agents and skills for every AI harness. Init once, deploy anywhere.</strong></p>
+  <p><strong>Universal skills and agents for every AI harness. Author once, wire anywhere.</strong></p>
 
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ee6d6" alt="MIT license"></a>
-  <a href="https://github.com/00200200/cinch/actions/workflows/ci.yml"><img src="https://github.com/00200200/cinch/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/00200200/cinch/stargazers"><img src="https://img.shields.io/github/stars/00200200/cinch?style=social&label=Star%20us!" alt="GitHub stars"></a>
+  <p align="center">
+    <a href="https://github.com/00200200/cinch/stargazers"><img src="https://img.shields.io/github/stars/00200200/cinch?style=social&label=Star%20Cinch" alt="GitHub stars"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ee6d6.svg" alt="MIT license"></a>
+    <a href="https://github.com/00200200/cinch/actions/workflows/ci.yml"><img src="https://github.com/00200200/cinch/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
+    <img src="https://img.shields.io/badge/dialects-9%20supported-8957e5.svg" alt="9 Supported Harnesses">
+    <img src="https://img.shields.io/badge/astral-uv%20ready-4c8dff.svg" alt="UV Powered">
+    <img src="https://img.shields.io/badge/telemetry-zero%20%2F%20local--first-3fb950.svg" alt="100% Local First">
+  </p>
 </div>
-
-<br />
-
-<div align="center">
-  <!-- Asciinema / GIF Animation Placeholder -->
-  <a href="#">
-    <img src="https://raw.githubusercontent.com/asciinema/asciicast-explorer/master/public/placeholder.gif" alt="Cinch Demo Animation" width="800">
-  </a>
-  <p><em>See how cinch configures your workspace in seconds.</em></p>
-</div>
-
-## 🚀 Why Cinch?
-
-Stop rewriting your AI tool configurations for every new project. You already have custom skills, agents, and hooks sitting on your machine for Claude Code, Cursor, Codex, and others.
-
-**Cinch** is the universal glue. It detects your installed AI harnesses, inventories your local skills, and seamlessly wires them into your project's expected layout. No bundled marketplace, no redundant skill libraries—just one `init` to bring your favorite AI agents to any project.
-
-## ✨ Features
-
-- 🔍 **Auto-Discovery:** Automatically finds skills, agents, and hooks in your local directories (e.g., `~/.claude`, `~/.cursor`).
-- ⚡ **Zero Friction:** One command copies your selection into the correct project folder structure.
-- 🌐 **Universal Support:** Claude Code, Cursor, Codex, Grok, OpenCode, Continue, Aider, Windsurf, Cline, Gemini CLI, and GitHub Copilot.
-- 🔒 **Local First:** Operates entirely on your machine. No scraping, no telemetry, no BS.
-
-## 📦 Quick Start
-
-Run cinch interactively without installing:
-
-```bash
-uvx --from git+https://github.com/00200200/cinch cinch init
-```
-
-Or run non-interactively to instantly configure a workspace:
-
-```bash
-uvx --from git+https://github.com/00200200/cinch cinch init \
-  --harness claude --skills humanizer --agents reviewer --yes
-```
-
-## 🛠 Core Commands
-
-| Command | Description |
-| :--- | :--- |
-| `cinch harnesses` | Shows supported and locally installed harnesses. |
-| `cinch inventory --harness <name>` | Lists available skills, agents, hooks, etc., for a given harness. |
-| `cinch init` | Wires selected skills and agents into your current repository. |
-
-## 🤝 Supported Harnesses
 
 <p align="center">
-  <img src="assets/harnesses.svg" alt="Supported AI Harnesses" width="100%">
+  <img src="assets/demo.svg" alt="Cinch CLI animated terminal recording" width="850">
+  <br/>
+  <em>See Cinch inspect local inventory and wire skills across harnesses in milliseconds.</em>
 </p>
-
-Cinch intelligently maps your local inventory to the project wiring needed for each product. For example, it maps `~/.claude/{skills,agents}` to `.claude/…` or `~/.cursor/hooks` to `.cursor/…`.
 
 ---
 
+## 💡 Why Cinch?
+
+The AI coding assistant ecosystem is deeply fragmented. Every developer and team uses different tools:
+
+- **Claude Code** stores skills in `.claude/skills/<n>/SKILL.md`
+- **Cursor & Codex** standardize on `.agents/skills/<n>/SKILL.md`
+- **GitHub Copilot** expects `.github/instructions/<n>.instructions.md` with YAML `applyTo`
+- **Gemini CLI** requires commands in `.gemini/commands/<n>.toml` with raw `prompt` blocks
+- **Windsurf / Devin** parses `.devin/rules/<n>.md` with strict character limits
+- **Cline** reads `.clinerules/<n>.md`
+- **Aider** ignores unconfigured files and requires entries appended to `.aider.conf.yml`
+
+Whenever you switch harnesses, try a new AI tool, or share custom workflows with your team, you're forced to manually rewrite prompt files, reformat frontmatter, and hunt down obscure config paths.
+
+**Cinch is the universal translation bridge.** It scans your existing local skills and agents, translates them through native dialect adapters, and attaches them directly into any project workspace. No proprietary marketplaces, no redundant skill libraries—just one CLI to bring your favorite skills everywhere.
+
+---
+
+## ⚡ Quickstart
+
+Run Cinch instantly with zero installation using [Astral `uvx`](https://github.com/astral-sh/uv):
+
+```bash
+# Interactive wizard: discover skills and pick target harnesses
+uvx cinch-init
+```
+
+Or instantly wire your skills into multiple harnesses in a single non-interactive command:
+
+```bash
+# Translate Claude skills into Cursor, GitHub Copilot, and Gemini CLI simultaneously
+uvx cinch-init --from-harness claude --harness cursor,copilot,gemini --skills humanizer --yes
+```
+
+You can also install Cinch globally:
+
+```bash
+# Using pipx or pip
+pipx install cinch-init
+# or
+pip install cinch-init
+```
+
+---
+
+## 🔄 One Skill, Every Dialect (The Rosetta Stone)
+
+Author your workflow once in standard Markdown. Cinch translates it into each harness's native format on the fly.
+
+### Source: `~/.claude/skills/humanizer/SKILL.md`
+```markdown
+---
+name: humanizer
+description: Convert robotic AI prose into punchy engineering writing
+paths:
+  - "**/*.md"
+---
+# Humanizer Guidelines
+- Cut throat-clearing openers ("Certainly! Here is...").
+- Use active voice and concrete verbs.
+```
+
+### Native Translations Generated by Cinch:
+
+<details open>
+<summary><strong>Cursor & Codex</strong> (<code>.agents/skills/humanizer/SKILL.md</code>)</summary>
+
+```markdown
+---
+name: "humanizer"
+description: "Convert robotic AI prose into punchy engineering writing"
+paths:
+  - "**/*.md"
+---
+
+# Humanizer Guidelines
+- Cut throat-clearing openers ("Certainly! Here is...").
+- Use active voice and concrete verbs.
+```
+</details>
+
+<details>
+<summary><strong>GitHub Copilot</strong> (<code>.github/instructions/humanizer.instructions.md</code>)</summary>
+
+```markdown
+---
+applyTo:
+  - "**/*.md"
+description: "Convert robotic AI prose into punchy engineering writing"
+---
+
+# Humanizer Guidelines
+- Cut throat-clearing openers ("Certainly! Here is...").
+- Use active voice and concrete verbs.
+```
+</details>
+
+<details>
+<summary><strong>Gemini CLI</strong> (<code>.gemini/commands/humanizer.toml</code>)</summary>
+
+```toml
+description = "Convert robotic AI prose into punchy engineering writing"
+prompt = """
+# Humanizer Guidelines
+- Cut throat-clearing openers ("Certainly! Here is...").
+- Use active voice and concrete verbs.
+"""
+```
+</details>
+
+<details>
+<summary><strong>Windsurf / Devin</strong> (<code>.devin/rules/humanizer.md</code>)</summary>
+
+```markdown
+---
+trigger: "manual"
+description: "Convert robotic AI prose into punchy engineering writing"
+globs:
+  - "**/*.md"
+---
+
+# Humanizer Guidelines
+- Cut throat-clearing openers ("Certainly! Here is...").
+- Use active voice and concrete verbs.
+```
+</details>
+
+<details>
+<summary><strong>Aider</strong> (<code>.aider/humanizer.md</code> + <code>.aider.conf.yml</code> merge)</summary>
+
+*File `.aider/humanizer.md`:*
+```markdown
+# humanizer
+
+> Convert robotic AI prose into punchy engineering writing
+
+# Humanizer Guidelines
+- Cut throat-clearing openers ("Certainly! Here is...").
+- Use active voice and concrete verbs.
+```
+
+*Merged safely into `.aider.conf.yml`:*
+```yaml
+read:
+  - ".aider/humanizer.md"
+```
+</details>
+
+---
+
+## 🤝 Supported Harness Matrix
+
+Every mapping is backed by vendor documentation and verified through automated conformance tests.
+
+| Harness | Skill Destination | Frontmatter Schema | Notes / Standards |
+| :--- | :--- | :--- | :--- |
+| **Claude Code** | `.claude/skills/<n>/SKILL.md` | Verbatim passthrough | Native Anthropic skill format |
+| **Cursor** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `paths` | Emerging cross-vendor `.agents` standard |
+| **Codex** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `paths` | Supports `disable-model-invocation` |
+| **GitHub Copilot** | `.github/instructions/<n>.instructions.md` | `applyTo`, `description` | Native Copilot instruction rules |
+| **Gemini CLI** | `.gemini/commands/<n>.toml` | `description`, `prompt` (TOML) | Validated TOML prompt command schema |
+| **Windsurf** | `.devin/rules/<n>.md` | `trigger`, `description`, `globs` | 12,000 character limit pointer fallback |
+| **Cline** | `.clinerules/<n>.md` | `paths` | Clean markdown rule injection |
+| **OpenCode** | `.opencode/commands/<n>.md` | `description` | Native command configuration |
+| **Aider** | `.aider/<n>.md` | None (Markdown body) | Automatically merges `read:` in `.aider.conf.yml` |
+
+*Planned Harnesses:* Grok CLI, Continue.
+
+---
+
+## 🛠️ Command Reference
+
+```bash
+# 1. Discover harnesses detected on your machine
+cinch harnesses
+
+# 2. Inspect available skills, agents, commands, and hooks on disk
+cinch inventory --harness claude
+cinch inventory --harness cursor --purpose security
+
+# 3. Interactive init wizard
+cinch init
+
+# 4. Multi-target cross-harness wiring (non-interactive)
+cinch init \
+  --from-harness claude \
+  --harness cursor,copilot,gemini,windsurf \
+  --skills humanizer,security-auditor \
+  --yes
+
+# 5. Attach from an external skills repository / checkout
+cinch init --from-dir ~/Code/maintainer-skills --harness cursor --yes
+```
+
+### CLI Flags
+
+| Flag | Description |
+| :--- | :--- |
+| `--from-harness <id>` | Source harness to read skills from (auto-detected if only one is on disk). |
+| `--harness <list>` | Target harness(es) to wire (comma-separated list, e.g. `cursor,copilot,gemini`). |
+| `--skills <list>` | Comma-separated list of skill names to attach. |
+| `--agents <list>` | Comma-separated list of agent names to attach. |
+| `--commands <list>` | Comma-separated list of commands/prompts to attach. |
+| `--hooks <list>` | Comma-separated list of hooks (preserved only when target matches source). |
+| `--purpose <catalog>` | Filter inventory by category: `python`, `ml`, `data`, `web`, `docs`, `security`, `agents`. |
+| `--from-dir <path>` | Extra local root directory containing skills or agents to inventory. |
+| `--dry-run` | Preview the exact files and paths without writing anything to disk. |
+| `--yes` | Non-interactive execution (accept defaults or provided flags). |
+
+---
+
+## 🧱 Architecture: The 3-Stage Pipeline
+
+Cinch never performs direct, naive file copying between disparate tools. Instead, it processes assets through a clean, verifiable translation pipeline:
+
+```
+┌─────────────────────────┐
+│  Source Item on Disk    │ (e.g. ~/.claude/skills/humanizer/SKILL.md)
+└────────────┬────────────┘
+             │ parse_doc()
+             ▼
+┌─────────────────────────┐
+│     Canonical Doc       │ (Unified AST: name, description, body, paths, support)
+└────────────┬────────────┘
+             │ Adapter.render()
+             ▼
+┌─────────────────────────┐
+│      RenderedFiles      │ (Tailored to each target dialect + merge rules)
+└────────────┬────────────┘
+             │ apply_plan()
+             ▼
+┌─────────────────────────┐
+│  Verified Project Files │ + .cinch.json execution audit manifest
+└─────────────────────────┘
+```
+
+### The Inline vs. Pointer Rule
+- **Inline by default:** The skill body is written directly into the target's native file with correctly translated frontmatter.
+- **Pointer when limits or assets require it:** If a skill exceeds documented per-file limit (e.g., Windsurf's 12,000 character rule threshold) or bundles supporting scripts (`scripts/`, `references/`), Cinch copies the support directory to `.cinch/skills/<name>/` and creates a native adapter file pointing to it.
+
+---
+
+## 🛡️ Trust & Safety Guarantees
+
+- 🔒 **100% Local-First:** Runs entirely on your local machine. No telemetry, no cloud dependencies, no network requests.
+- 🛡️ **Zero Destructive Overwrites:** Existing hand-crafted rule files are never silently replaced (`outcome: "exists"`).
+- 📝 **Verifiable Manifest:** Every run updates `.cinch.json` with an exact audit trail of files written, merged, or skipped.
+
+---
+
+## 🌟 Community & Contributing
+
+Contributions are warmly welcome! Whether adding an adapter for a new harness, refining prompts, or improving test fixtures:
+
+- Read our [Contributing Guide](CONTRIBUTING.md)
+- Check our [Security Policy](SECURITY.md)
+- License: [MIT](LICENSE)
+
 <div align="center">
-  <strong>If Cinch saves you time, please consider giving it a ⭐ on GitHub!</strong>
+  <p><strong>If Cinch saves you time wiring AI workflows, please consider giving it a ⭐ on GitHub!</strong></p>
 </div>

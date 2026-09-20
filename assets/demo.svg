@@ -31,7 +31,7 @@
   <circle cx="28" cy="24" r="6" fill="#ff5f56"/>
   <circle cx="48" cy="24" r="6" fill="#ffbd2e"/>
   <circle cx="68" cy="24" r="6" fill="#27c93f"/>
-  <text x="430" y="29" text-anchor="middle" class="dim">cinch · recorded stdout</text>
+  <text x="430" y="29" text-anchor="middle" class="dim">cinch &#183; recorded stdout</text>
 
   <text id="l1" x="26" y="72"><tspan class="dim">$</tspan> <tspan class="c">cinch harnesses</tspan></text>
   <text id="l2" x="26" y="100" class="c">cinch  Universal agents for every harness.</text>
@@ -52,5 +52,5 @@
   <text id="l15" x="26" y="452" class="c">cinch  Universal agents for every harness.</text>
   <text id="l16" x="26" y="476">  attached  skill:humanizer, agent:reviewer</text>
 
-  <text x="26" y="528"><tspan class="dim">$</tspan> <tspan class="cur">?</tspan></text>
+  <text x="26" y="528"><tspan class="dim">$</tspan> <tspan class="cur">&#9608;</tspan></text>
 </svg>

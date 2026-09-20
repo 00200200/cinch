@@ -94,14 +94,12 @@ class TestHarnessPresence:
             "claude",
             "cursor",
             "codex",
-            "grok",
-            "opencode",
-            "continue",
-            "aider",
+            "copilot",
+            "gemini",
             "windsurf",
             "cline",
-            "gemini",
-            "copilot",
+            "opencode",
+            "aider",
         ]
         titles = {item.id: item.title for item in detect_harnesses(home=tmp_path, binaries=set())}
         assert "OpenAI" not in titles["codex"]
@@ -256,7 +254,7 @@ class TestCliNoninteractive:
         assert "skill:mkl-humanize" in out
         manifest = json.loads((project / ".cinch.json").read_text(encoding="utf-8"))
         assert manifest["harness"] == "cursor"
-        assert (project / ".cursor" / "skills" / "mkl-humanize" / "SKILL.md").is_file()
+        assert (project / ".agents/skills" / "mkl-humanize" / "SKILL.md").is_file()
         assert json.loads((project / "package.json").read_text(encoding="utf-8"))["name"] == "web"
 
     def test_inventory_lists_that_harness(
@@ -347,4 +345,3 @@ class TestRecordedDemoStdout:
         assert out[0] == "cinch  Universal agents for every harness."
         assert out[1] == "  harness   Claude Code (claude)"
         assert out[2] == "  attached  skill:humanizer, agent:reviewer"
-
