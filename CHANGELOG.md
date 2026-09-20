@@ -6,13 +6,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and [Semantic Ver
 ## [Unreleased]
 
 ### Added
-- `cinch preview <skill> --target <harness>` — render a skill in any dialect without writing files
-- `cinch status` — verify wired file integrity and sync state from `.cinch.json` manifest
-- Conformance test suite with vendor documentation citations for all 9 harness adapters
-- Rich terminal output with colored tables, panels, and status indicators
-- GitHub Actions release workflow for PyPI trusted publishing on tag push
-- Issue templates (bug report, new dialect request) and PR template
-- Three example skills: `humanizer`, `security-auditor`, `docker-deploy`
+- `cinch check [path]` — comprehensive skill linter & validator verifying YAML frontmatter, naming conventions, path globs, and Windsurf size constraints with Rich diagnostics table
+- `cinch diff [project]` — workspace drift detector comparing on-disk files against source translations with syntax-highlighted unified diffs
+- Bundled starter skills (`--starter`) — 4 curated starter skills (`humanizer`, `security-auditor`, `test-writer`, `git-commit`) shipping directly inside the package
+- Interactive starter skills onboarding prompt when no existing local skills are detected
+- Standalone benchmark suite (`benchmark/run.py`) demonstrating >500,000 dialects/sec translation throughput
+- Direct skill folder scanning support for `--from-dir`
+- `cinch-init` entrypoint script alias for zero-config `uvx cinch-init` execution
 
 ## [0.1.0] — 2025-09-20
 

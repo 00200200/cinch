@@ -9,6 +9,10 @@ from pathlib import Path
 from cinch.catalog import HARNESSES, tags_for
 from cinch.errors import CinchError
 
+STARTER_DIR = Path(__file__).parent / "starter"
+
+__all__ = ["STARTER_DIR", "Item", "collect_inventory"]
+
 
 @dataclass(frozen=True)
 class Item:
@@ -25,6 +29,7 @@ def collect_inventory(
     project: Path,
     purpose: str | None = None,
     extra_roots: tuple[Path, ...] = (),
+    include_starter: bool = False,
 ) -> list[Item]:
     if harness not in HARNESSES:
         raise CinchError(f"Unknown harness: {harness}")
@@ -60,6 +65,9 @@ def collect_inventory(
         _named_files_in(add, "command", root / "commands")
         _skills_in(add, "skill", root / "grok-bot" / "skills")
         _named_files_in(add, "agent", root / "grok-bot" / "agents")
+
+    if include_starter:
+        _skills_in(add, "skill", STARTER_DIR)
 
     result = list(items.values())
     if purpose:
