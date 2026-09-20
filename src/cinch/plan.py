@@ -110,6 +110,8 @@ def resolve_plan(
         if from_harness not in HARNESSES:
             raise CinchError(f"Unknown harness: {from_harness}")
         resolved_source = from_harness
+    elif extra_roots:
+        resolved_source = "claude"
     else:
         detected = detect_harnesses(home=home)
         present = [h.id for h in detected if h.present]
@@ -118,8 +120,6 @@ def resolve_plan(
         elif len(present) == 0:
             if harness and isinstance(harness, str) and "," not in harness and harness in HARNESSES:
                 resolved_source = harness
-            elif extra_roots:
-                resolved_source = "claude"
             else:
                 raise CinchError(
                     "No installed harness detected on disk. Specify source with --from-harness."
