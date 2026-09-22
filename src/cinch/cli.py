@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import json
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -32,7 +33,23 @@ Init once. Translate and wire skills between Claude Code, Cursor, Codex,
 GitHub Copilot, Gemini CLI, Windsurf, Cline, OpenCode, and Aider.
 """
 
-console = Console()
+
+def _force_terminal() -> bool | None:
+    """Choose Rich vs plain output with correct FORCE_COLOR / NO_COLOR semantics.
+
+    Rich treats any non-empty FORCE_COLOR (including ``0``) as a terminal. Per
+    https://force-color.org/, ``0`` / ``false`` disable color, and NO_COLOR
+    always wins. Return None so Rich can auto-detect when neither is set.
+    """
+    if os.environ.get("NO_COLOR", "") != "":
+        return False
+    force = os.environ.get("FORCE_COLOR")
+    if force is None:
+        return None
+    return force.strip().lower() not in ("", "0", "false", "no", "off")
+
+
+console = Console(force_terminal=_force_terminal())
 
 
 def build_parser() -> argparse.ArgumentParser:
