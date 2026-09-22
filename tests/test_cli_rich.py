@@ -155,3 +155,55 @@ def test_rich_preview_output(tmp_path: Path) -> None:
             ]
         )
         assert code == 0
+
+
+def test_force_color_zero_uses_plain_output(tmp_path: Path, monkeypatch, capsys) -> None:
+    """FORCE_COLOR=0 must select plain CLI text (Rich treats any non-empty value as a TTY)."""
+    monkeypatch.setenv("FORCE_COLOR", "0")
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    home = tmp_path / "home"
+    skill_dir = home / ".claude" / "skills" / "humanizer"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text("---\nname: humanizer\n---\n# Body\n")
+
+    # Recreate the module console after env change so force_terminal is re-evaluated.
+    import cinch.cli as cli
+
+    cli.console = cli.Console(force_terminal=cli._force_terminal())
+
+    code = main(
+        [
+            "preview",
+            "humanizer",
+            "--from-harness",
+            "claude",
+            "--target",
+            "gemini",
+            "--home",
+            str(home),
+        ]
+    )
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "Cinch Preview: humanizer -> target dialect: gemini" in out
+    assert "╭" not in out
+
+
+def test_no_color_uses_plain_output(tmp_path: Path, monkeypatch, capsys) -> None:
+    """NO_COLOR disables Rich panels even when FORCE_COLOR requests color."""
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    home = tmp_path / "home"
+    skill_dir = home / ".claude" / "skills" / "humanizer"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text("---\nname: humanizer\n---\n# Body\n")
+
+    import cinch.cli as cli
+
+    cli.console = cli.Console(force_terminal=cli._force_terminal())
+
+    code = main(["harnesses", "--home", str(home)])
+    assert code == 0
+    out = capsys.readouterr().out
+    assert out.splitlines()[0] == "cinch  Universal agents for every harness."
+    assert "╭" not in out
