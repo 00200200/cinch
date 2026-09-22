@@ -86,8 +86,19 @@ def _hidden(path: Path) -> bool:
 def _skills_in(add, kind: str, root: Path) -> None:
     if not root.is_dir():
         return
-    for skill_md in sorted(root.glob("*/SKILL.md")):
-        if _hidden(skill_md.relative_to(root)):
+    # A --from-dir pointing at one skill package (…/humanizer/SKILL.md).
+    direct = root / "SKILL.md"
+    if direct.is_file():
+        name = root.name
+        add(Item(kind, name, root, tags_for(name)))
+        return
+    # Nested layouts such as skills/docs/readme-polish/SKILL.md.
+    for skill_md in sorted(root.rglob("SKILL.md")):
+        try:
+            relative = skill_md.relative_to(root)
+        except ValueError:
+            continue
+        if _hidden(relative):
             continue
         name = skill_md.parent.name
         add(Item(kind, name, skill_md.parent, tags_for(name)))

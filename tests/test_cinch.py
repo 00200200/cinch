@@ -88,6 +88,18 @@ class TestHarnessPresence:
         found = {item.id: item for item in detect_harnesses(home=home, binaries=set())}
         assert found["cursor"].present
 
+    def test_detects_cursor_from_project_agents_layout(self, tmp_path: Path) -> None:
+        """Projects wired to the shared .agents layout should count as Cursor present."""
+        home = tmp_path / "home"
+        home.mkdir()
+        project = tmp_path / "app"
+        (project / ".agents" / "skills").mkdir(parents=True)
+        found = {
+            item.id: item for item in detect_harnesses(home=home, binaries=set(), project=project)
+        }
+        assert found["cursor"].present
+        assert "project:.agents" in found["cursor"].reasons
+
     def test_supported_harness_ids_are_real_products(self, tmp_path: Path) -> None:
         ids = [item.id for item in detect_harnesses(home=tmp_path, binaries=set())]
         assert ids == [
@@ -122,6 +134,33 @@ class TestInventory:
         assert ("command", "ship") in kinds
         assert ("hook", "format.sh") in kinds
         assert ("mcp", "docs") in kinds
+
+    def test_cursor_inventories_shared_agents_skills(self, tmp_path: Path) -> None:
+        """Cursor and Codex share ~/.agents/skills; Cursor inventory must see them."""
+        home = tmp_path / "home"
+        skill(home / ".agents" / "skills", "humanizer")
+        items = collect_inventory(harness="cursor", home=home, project=tmp_path / "proj")
+        names = {item.name for item in items if item.kind == "skill"}
+        assert names == {"humanizer"}
+
+    def test_discovers_nested_skill_directories(self, tmp_path: Path) -> None:
+        home = tmp_path / "home"
+        skill(home / ".claude" / "skills" / "docs", "readme-polish")
+        skill(home / ".claude" / "skills" / ".vendor", "ignored-builtin")
+        items = collect_inventory(harness="claude", home=home, project=tmp_path / "proj")
+        names = {item.name for item in items if item.kind == "skill"}
+        assert names == {"readme-polish"}
+
+    def test_extra_root_accepts_a_single_skill_directory(self, tmp_path: Path) -> None:
+        skill_dir = skill(tmp_path / "packaged", "ship-it")
+        items = collect_inventory(
+            harness="claude",
+            home=tmp_path / "empty_home",
+            project=tmp_path / "proj",
+            extra_roots=(skill_dir,),
+        )
+        names = {item.name for item in items if item.kind == "skill"}
+        assert names == {"ship-it"}
 
     def test_codex_skips_system_skills(self, tmp_path: Path) -> None:
         home = tmp_path / "home"
@@ -169,6 +208,39 @@ class TestPlanAndWire:
     def test_unknown_harness_is_rejected(self) -> None:
         with pytest.raises(CinchError, match="Unknown harness"):
             resolve_plan(harness="not-a-product")
+
+    def test_source_auto_detect_uses_project_markers(self, tmp_path: Path) -> None:
+        """When home is empty, a project .claude tree is enough to resolve the source."""
+        home = tmp_path / "home"
+        home.mkdir()
+        project = tmp_path / "app"
+        skill(project / ".claude" / "skills", "humanizer")
+        plan = resolve_plan(
+            harness="cursor",
+            project=project,
+            home=home,
+            skills=("humanizer",),
+            dry_run=True,
+            binaries=set(),
+        )
+        assert plan.source_harness == "claude"
+        assert plan.targets == ("cursor",)
+
+    def test_multiple_harnesses_require_from_harness_to_cross_wire(self, tmp_path: Path) -> None:
+        """Cross-wiring to a different/absent target must not guess the source."""
+        home = tmp_path / "home"
+        (home / ".claude").mkdir(parents=True)
+        (home / ".cursor").mkdir(parents=True)
+        project = tmp_path / "app"
+        project.mkdir()
+        with pytest.raises(CinchError, match="Multiple harnesses detected"):
+            resolve_plan(
+                harness="gemini",
+                project=project,
+                home=home,
+                dry_run=True,
+                binaries=set(),
+            )
 
     def test_init_copies_selected_items_into_project_layout(self, tmp_path: Path) -> None:
         home = tmp_path / "home"

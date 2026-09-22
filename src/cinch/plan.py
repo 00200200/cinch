@@ -84,6 +84,7 @@ def resolve_plan(
     commands: tuple[str, ...] | None = None,
     extra_roots: tuple[Path, ...] = (),
     dry_run: bool = False,
+    binaries: set[str] | None = None,
 ) -> Plan:
     project = (project or Path.cwd()).resolve()
     home = (home or Path.home()).expanduser()
@@ -113,21 +114,23 @@ def resolve_plan(
     elif extra_roots:
         resolved_source = "claude"
     else:
-        detected = detect_harnesses(home=home)
+        detected = detect_harnesses(home=home, binaries=binaries, project=project)
         present = [h.id for h in detected if h.present]
         if len(present) == 1:
             resolved_source = present[0]
         elif len(present) == 0:
-            if harness and isinstance(harness, str) and "," not in harness and harness in HARNESSES:
-                resolved_source = harness
+            # Nothing on disk: allow same-harness wiring when a single target is named.
+            if len(targets) == 1:
+                resolved_source = targets[0]
             else:
                 raise CinchError(
                     "No installed harness detected on disk. Specify source with --from-harness."
                 )
         else:
-            # Multiple present on disk
-            if harness and isinstance(harness, str) and "," not in harness and harness in present:
-                resolved_source = harness
+            # Same-harness shortcut: a single named target that is installed may
+            # serve as the source. Cross-wiring (other/missing targets) must be explicit.
+            if len(targets) == 1 and targets[0] in present:
+                resolved_source = targets[0]
             else:
                 cands = ", ".join(present)
                 raise CinchError(

@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and [Semantic Ver
 
 ## [Unreleased]
 
+### Fixed
+- Cursor inventory now scans the shared `~/.agents/skills` layout used with Codex
+- Harness detection treats project `.agents/` as a Cursor presence marker
+- Source auto-detect (`--from-harness` omitted) considers project markers, not only `$HOME`
+- Skill discovery finds nested `**/SKILL.md` packages and single-skill `--from-dir` roots
+- Multi-harness machines require `--from-harness` when cross-wiring (same-harness `--harness` still works)
+
 ### Added
 - `cinch check [path]` — comprehensive skill linter & validator verifying YAML frontmatter, naming conventions, path globs, and Windsurf size constraints with Rich diagnostics table
 - `cinch diff [project]` — workspace drift detector comparing on-disk files against source translations with syntax-highlighted unified diffs
