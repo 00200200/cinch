@@ -6,15 +6,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and [Semantic Ver
 ## [Unreleased]
 
 ### Fixed
-<<<<<<< HEAD
 - Cursor inventory now scans the shared `~/.agents/skills` layout used with Codex
 - Harness detection treats project `.agents/` as a Cursor presence marker
 - Source auto-detect (`--from-harness` omitted) considers project markers, not only `$HOME`
 - Skill discovery finds nested `**/SKILL.md` packages and single-skill `--from-dir` roots
 - Multi-harness machines require `--from-harness` when cross-wiring (same-harness `--harness` still works)
-=======
 - Respect `NO_COLOR` and `FORCE_COLOR=0`/`false` for plain CLI output. Rich treats any non-empty `FORCE_COLOR` (including `0`) as a TTY, which broke scripted/demo stdout and pytest captures under `FORCE_COLOR=0`.
->>>>>>> origin/main
 
 ### Added
 - `cinch check [path]` — comprehensive skill linter & validator verifying YAML frontmatter, naming conventions, path globs, and Windsurf size constraints with Rich diagnostics table
