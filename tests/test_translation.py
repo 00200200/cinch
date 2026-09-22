@@ -148,6 +148,47 @@ class TestMultiTargetWiring:
         for r in manifest["results"]:
             assert r["outcome"] == "written"
 
+    def test_cursor_and_codex_share_agents_path(self, tmp_path: Path) -> None:
+        """Cursor and Codex both write `.agents/skills/`; the second is shared."""
+        home = tmp_path / "home"
+        skill_dir = home / ".claude" / "skills" / "humanizer"
+        _write_file(
+            skill_dir / "SKILL.md",
+            "---\nname: humanizer\ndescription: Polish writing.\n---\nMake it concise.\n",
+        )
+        project = tmp_path / "app"
+        project.mkdir()
+
+        plan = resolve_plan(
+            from_harness="claude",
+            harness="claude,cursor,codex",
+            project=project,
+            home=home,
+            skills=("humanizer",),
+        )
+        result = apply_plan(plan)
+
+        by_target = {r["target"]: r for r in result["results"]}
+        assert by_target["claude"]["outcome"] == "written"
+        assert by_target["claude"]["path"] == ".claude/skills/humanizer/SKILL.md"
+        assert by_target["cursor"]["outcome"] == "written"
+        assert by_target["cursor"]["path"] == ".agents/skills/humanizer/SKILL.md"
+        assert by_target["codex"]["outcome"] == "shared"
+        assert by_target["codex"]["path"] == ".agents/skills/humanizer/SKILL.md"
+        assert by_target["codex"]["shared_with"] == "cursor"
+        assert "skill:humanizer" in result["copied"]
+
+        assert (project / ".claude/skills/humanizer/SKILL.md").is_file()
+        assert (project / ".agents/skills/humanizer/SKILL.md").is_file()
+
+        # Re-run: both Cursor and Codex paths already on disk → exists, not shared.
+        result2 = apply_plan(plan)
+        by_target2 = {r["target"]: r for r in result2["results"]}
+        assert by_target2["claude"]["outcome"] == "exists"
+        assert by_target2["cursor"]["outcome"] == "exists"
+        assert by_target2["codex"]["outcome"] == "exists"
+        assert result2["copied"] == []
+
 
 class TestPointerAndSupportFiles:
     def test_skill_with_support_scripts(self, tmp_path: Path) -> None:

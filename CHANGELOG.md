@@ -6,6 +6,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and [Semantic Ver
 ## [Unreleased]
 
 ### Fixed
+- Multi-target `cursor,codex` (and any shared destination path) now reports `shared` for the second write in the same run instead of looking like a pre-existing `exists` skip; `copied` still lists the skill once
+- Quickstart documents Claude Code + Cursor + Codex landing paths and the shared `.agents/skills` layout
+- Examples README includes a verified three-harness wire for `humanizer`
+- README dialect badge uses the teal brand color (was purple)
 - Cursor inventory now scans the shared `~/.agents/skills` layout used with Codex
 - Harness detection treats project `.agents/` as a Cursor presence marker
 - Source auto-detect (`--from-harness` omitted) considers project markers, not only `$HOME`

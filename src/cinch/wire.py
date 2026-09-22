@@ -9,27 +9,32 @@ from typing import Literal
 
 from cinch.plan import Plan, PlannedFile
 
-Outcome = Literal["written", "unchanged", "exists", "skipped"]
+Outcome = Literal["written", "unchanged", "exists", "shared", "skipped"]
 
 
 def apply_plan(plan: Plan) -> dict:
     results: list[dict] = []
     copied_list: list[str] = []
     seen: set[str] = set()
+    # Paths written earlier in this apply pass → first target that wrote them.
+    # Cursor and Codex both land on `.agents/skills/…`, so the second target
+    # should report "shared" (covered by the first write) instead of "exists".
+    written_this_pass: dict[str, str] = {}
 
     if not plan.dry_run:
         for file in plan.files:
-            outcome = _apply_file(file, plan.project)
-            results.append(
-                {
-                    "kind": file.kind,
-                    "name": file.name,
-                    "target": file.target,
-                    "path": file.relpath,
-                    "outcome": outcome,
-                }
-            )
-            if outcome in ("written", "unchanged"):
+            outcome = _apply_file(file, plan.project, written_this_pass)
+            entry: dict = {
+                "kind": file.kind,
+                "name": file.name,
+                "target": file.target,
+                "path": file.relpath,
+                "outcome": outcome,
+            }
+            if outcome == "shared" and file.relpath in written_this_pass:
+                entry["shared_with"] = written_this_pass[file.relpath]
+            results.append(entry)
+            if outcome in ("written", "unchanged", "shared"):
                 key = f"{file.kind}:{file.name}"
                 if key not in seen:
                     seen.add(key)
@@ -61,15 +66,28 @@ def apply_plan(plan: Plan) -> dict:
             if key not in seen:
                 seen.add(key)
                 copied_list.append(key)
-            results.append(
-                {
-                    "kind": file.kind,
-                    "name": file.name,
-                    "target": file.target,
-                    "path": file.relpath,
-                    "outcome": "written",
-                }
-            )
+            if file.relpath in written_this_pass:
+                results.append(
+                    {
+                        "kind": file.kind,
+                        "name": file.name,
+                        "target": file.target,
+                        "path": file.relpath,
+                        "outcome": "shared",
+                        "shared_with": written_this_pass[file.relpath],
+                    }
+                )
+            else:
+                written_this_pass[file.relpath] = file.target
+                results.append(
+                    {
+                        "kind": file.kind,
+                        "name": file.name,
+                        "target": file.target,
+                        "path": file.relpath,
+                        "outcome": "written",
+                    }
+                )
 
     return {
         "harness": plan.harness,
@@ -85,7 +103,11 @@ def apply_plan(plan: Plan) -> dict:
     }
 
 
-def _apply_file(file: PlannedFile, project: Path) -> Outcome:
+def _apply_file(
+    file: PlannedFile,
+    project: Path,
+    written_this_pass: dict[str, str],
+) -> Outcome:
     dest = project / file.relpath
 
     if file.support_source and file.support_dest:
@@ -94,22 +116,30 @@ def _apply_file(file: PlannedFile, project: Path) -> Outcome:
             shutil.copytree(file.support_source, support_dir)
 
     if file.mode == "merge":
-        return _merge_file(dest, file.content)
+        outcome = _merge_file(dest, file.content)
+        if outcome == "written":
+            written_this_pass[file.relpath] = file.target
+        return outcome
 
     if dest.exists():
+        if file.relpath in written_this_pass:
+            return "shared"
         return "exists"
 
     dest.parent.mkdir(parents=True, exist_ok=True)
 
     if file.content:
         dest.write_text(file.content, encoding="utf-8")
+        written_this_pass[file.relpath] = file.target
         return "written"
 
     if file.source:
         _copy(file.source, dest)
+        written_this_pass[file.relpath] = file.target
         return "written"
 
     dest.write_text("", encoding="utf-8")
+    written_this_pass[file.relpath] = file.target
     return "written"
 
 

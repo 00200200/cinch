@@ -1,33 +1,67 @@
 # Cinch Example Skills
 
-This directory contains ready-to-use example skills illustrating how Cinch translates authoring formats into native harnesses.
+Ready-to-wire skills that show how Cinch translates one Markdown source into each harness dialect.
 
 ## Directory Structure
 
 ```
 examples/skills/
 ├── humanizer/
-│   └── SKILL.md                 # Single-file documentation writing skill
+│   └── SKILL.md                 # Single-file writing skill
 ├── security-auditor/
-│   └── SKILL.md                 # Code security auditor with multi-language glob paths
+│   └── SKILL.md                 # Security audit skill with multi-language globs
 └── docker-deploy/
     ├── SKILL.md                 # Multi-file skill with script references
     └── scripts/
-        └── verify.sh            # Bundled script demonstrating Cinch pointer resolution
+        └── verify.sh            # Bundled script (pointer / support copy)
 ```
 
-## Trying It Out
+## Try it: Claude Code + Cursor + Codex
 
-You can point Cinch directly at this directory to attach these skills to any local project:
+From the repo root (needs [uv](https://docs.astral.sh/uv/) or a local `cinch` install):
 
 ```bash
-# Wire the humanizer skill into Cursor (.agents/skills)
-cinch init --from-dir examples/skills --harness cursor --skills humanizer --yes
+# Fresh project directory — clone cinch once, then wire from its examples:
+git clone https://github.com/00200200/cinch.git /tmp/cinch
+mkdir /tmp/cinch-demo && cd /tmp/cinch-demo
 
-# Wire the security auditor into Copilot instructions and Gemini commands simultaneously
+uvx cinch-init \
+  --from-dir /tmp/cinch/examples/skills \
+  --harness claude,cursor,codex \
+  --skills humanizer \
+  --yes
+```
+
+Or, from inside this repository:
+
+```bash
+uv run cinch init --from-dir examples/skills --harness claude,cursor,codex --skills humanizer --yes
+```
+
+Expected layout:
+
+```
+.claude/skills/humanizer/SKILL.md   # Claude Code
+.agents/skills/humanizer/SKILL.md   # Cursor and Codex (shared path)
+.cinch.json                         # audit manifest
+```
+
+Cursor and Codex both read `.agents/skills/`. Cinch writes that file once and marks the
+second target as `shared` in `.cinch.json` — not a conflict, and not a silent skip of a
+pre-existing hand-written rule.
+
+Then in your agent:
+
+- Claude Code / Cursor: `/humanizer`
+- Codex: `$humanizer`
+
+## Other harnesses
+
+```bash
+# Copilot instructions + Gemini command from the same skill
 cinch init --from-dir examples/skills --harness copilot,gemini --skills security-auditor --yes
 
-# Wire the multi-file docker-deploy skill into Copilot
-# (Notice how Cinch inlines the instructions and moves scripts into .cinch/skills/docker-deploy/)
+# Multi-file docker-deploy into Copilot
+# (body inlined; scripts land under .cinch/skills/docker-deploy/)
 cinch init --from-dir examples/skills --harness copilot --skills docker-deploy --yes
 ```
