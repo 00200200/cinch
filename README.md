@@ -9,7 +9,7 @@
     <a href="https://github.com/00200200/cinch/actions/workflows/ci.yml"><img src="https://github.com/00200200/cinch/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
     <a href="https://codecov.io/gh/00200200/cinch"><img src="https://codecov.io/gh/00200200/cinch/graph/badge.svg" alt="codecov"></a>
     <a href="https://pypi.org/project/cinch-init/"><img src="https://img.shields.io/pypi/v/cinch-init.svg?color=2ee6d6" alt="PyPI"></a>
-    <img src="https://img.shields.io/badge/dialects-9%20supported-8957e5.svg" alt="9 Supported Harnesses">
+    <img src="https://img.shields.io/badge/dialects-9%20supported-2ee6d6.svg" alt="9 Supported Harnesses">
     <img src="https://img.shields.io/badge/astral-uv%20ready-4c8dff.svg" alt="UV Powered">
     <img src="https://img.shields.io/badge/telemetry-zero%20%2F%20local--first-3fb950.svg" alt="100% Local First">
   </p>
@@ -43,28 +43,43 @@ Whenever you switch harnesses, try a new AI tool, or share custom workflows with
 
 ## ⚡ Quickstart
 
-Run Cinch instantly with zero installation using [Astral `uvx`](https://github.com/astral-sh/uv):
+### Claude Code + Cursor + Codex (most common)
+
+Cursor and Codex share the same on-disk layout (`.agents/skills/`). Wire once and both
+read the skill; Claude Code gets its own `.claude/skills/` copy.
+
+```bash
+# From a checkout that has example skills (or point --from-dir at your own):
+uvx cinch-init \
+  --from-dir examples/skills \
+  --harness claude,cursor,codex \
+  --skills humanizer \
+  --yes
+```
+
+| Harness | Where the skill lands | Invoke |
+| :--- | :--- | :--- |
+| **Claude Code** | `.claude/skills/humanizer/SKILL.md` | `/humanizer` |
+| **Cursor** | `.agents/skills/humanizer/SKILL.md` | `/humanizer` |
+| **Codex** | same `.agents/skills/…` path as Cursor | `$humanizer` |
+
+No Claude skills on disk yet? Use the bundled starters instead:
+
+```bash
+uvx cinch-init --starter --harness claude,cursor,codex --yes
+```
+
+### Interactive or other harnesses
 
 ```bash
 # Interactive wizard: discover skills and pick target harnesses
 uvx cinch-init
-```
 
-Or instantly wire your skills into multiple harnesses in a single non-interactive command:
-
-```bash
-# Translate Claude skills into Cursor, GitHub Copilot, and Gemini CLI simultaneously
+# Also wire Copilot / Gemini / etc. in the same run
 uvx cinch-init --from-harness claude --harness cursor,copilot,gemini --skills humanizer --yes
 ```
 
-You can also install Cinch globally:
-
-```bash
-# Using pipx or pip
-pipx install cinch-init
-# or
-pip install cinch-init
-```
+Install globally with `pipx install cinch-init` or `pip install cinch-init`.
 
 ---
 
@@ -180,8 +195,8 @@ Every mapping is backed by vendor documentation and verified through automated c
 | Harness | Skill Destination | Frontmatter Schema | Notes / Standards |
 | :--- | :--- | :--- | :--- |
 | **Claude Code** | `.claude/skills/<n>/SKILL.md` | Verbatim passthrough | Native Anthropic skill format |
-| **Cursor** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `paths` | Emerging cross-vendor `.agents` standard |
-| **Codex** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `paths` | Supports `disable-model-invocation` |
+| **Cursor** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `paths` | Shared with Codex (one write covers both) |
+| **Codex** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `paths` | Same path as Cursor; supports `disable-model-invocation` |
 | **GitHub Copilot** | `.github/instructions/<n>.instructions.md` | `applyTo`, `description` | Native Copilot instruction rules |
 | **Gemini CLI** | `.gemini/commands/<n>.toml` | `description`, `prompt` (TOML) | Validated TOML prompt command schema |
 | **Windsurf** | `.devin/rules/<n>.md` | `trigger`, `description`, `globs` | 12,000 character limit pointer fallback |
@@ -210,8 +225,8 @@ cinch preview security-auditor --from-dir examples/skills --target gemini
 # 4. Interactive init wizard (prompts for starter skills if none on disk)
 cinch init
 
-# 5. Wire curated starter skills into multiple harnesses instantly
-cinch init --starter --harness cursor,copilot,gemini --yes
+# 5. Wire curated starters into Claude Code + Cursor/Codex
+cinch init --starter --harness claude,cursor,codex --yes
 
 # 6. Multi-target cross-harness wiring (non-interactive)
 cinch init \
