@@ -103,6 +103,52 @@ class TestCrossHarnessAdapters:
         assert 'read:\n  - ".aider/lint.md"' in merge_file.text
 
 
+class TestZedAdapter:
+    def test_skill_has_minimal_frontmatter_and_no_paths(self) -> None:
+        doc = Doc(
+            kind="skill",
+            name="humanizer",
+            description="Humanize AI prose.",
+            body="Follow Hemingway rules.\n",
+            paths=("*.md", "docs/**"),
+        )
+        rendered = get_adapter("zed").render(doc)
+        assert len(rendered) == 1
+        rf = rendered[0]
+        assert rf.relpath == ".agents/skills/humanizer/SKILL.md"
+        assert 'name: "humanizer"' in rf.text
+        assert 'description: "Humanize AI prose."' in rf.text
+        assert "Follow Hemingway rules." in rf.text
+        assert "paths:" not in rf.text
+        assert "disable-model-invocation" not in rf.text
+
+    def test_command_is_not_model_invocable(self) -> None:
+        doc = Doc(
+            kind="command",
+            name="ship",
+            description="Release helper",
+            body="Run checks and tag git version.\n",
+        )
+        rendered = get_adapter("zed").render(doc)
+        assert len(rendered) == 1
+        rf = rendered[0]
+        assert rf.relpath == ".agents/skills/ship/SKILL.md"
+        assert "disable-model-invocation: true" in rf.text
+
+    def test_agent_lands_at_skill_path_and_is_model_invocable(self) -> None:
+        doc = Doc(
+            kind="agent",
+            name="reviewer",
+            description="Review code.",
+            body="Check diffs.\n",
+        )
+        rendered = get_adapter("zed").render(doc)
+        assert len(rendered) == 1
+        rf = rendered[0]
+        assert rf.relpath == ".agents/skills/reviewer/SKILL.md"
+        assert "disable-model-invocation" not in rf.text
+
+
 class TestMultiTargetWiring:
     def test_wire_claude_skill_to_cursor_copilot_gemini(self, tmp_path: Path) -> None:
         home = tmp_path / "home"
@@ -188,6 +234,75 @@ class TestMultiTargetWiring:
         assert by_target2["cursor"]["outcome"] == "exists"
         assert by_target2["codex"]["outcome"] == "exists"
         assert result2["copied"] == []
+
+    def test_wire_claude_skill_to_zed(self, tmp_path: Path) -> None:
+        home = tmp_path / "home"
+        _write_file(
+            home / ".claude" / "skills" / "humanizer" / "SKILL.md",
+            "---\nname: humanizer\ndescription: Polish writing.\n---\nMake it concise.\n",
+        )
+        project = tmp_path / "app"
+        project.mkdir()
+
+        plan = resolve_plan(
+            from_harness="claude",
+            harness="zed",
+            project=project,
+            home=home,
+            skills=("humanizer",),
+        )
+        assert plan.targets == ("zed",)
+        relpath = ".agents/skills/humanizer/SKILL.md"
+        assert plan.files[0].relpath == relpath
+
+        result = apply_plan(plan)
+        by_target = {r["target"]: r for r in result["results"]}
+        assert by_target["zed"]["outcome"] == "written"
+        assert by_target["zed"]["path"] == relpath
+
+        zed_file = project / relpath
+        assert zed_file.is_file()
+        assert "Make it concise." in zed_file.read_text(encoding="utf-8")
+
+        manifest = json.loads((project / ".cinch.json").read_text(encoding="utf-8"))
+        assert manifest["targets"] == ["zed"]
+        assert manifest["results"][0]["target"] == "zed"
+        assert manifest["results"][0]["outcome"] == "written"
+
+    def test_cursor_and_zed_share_agents_path(self, tmp_path: Path) -> None:
+        """Cursor and Zed share `.agents/skills/`; the later target reports shared.
+
+        Cursor emits `paths` while Zed emits only `name`/`description`, so the
+        on-disk bytes are Cursor's superset rendering and Zed ignores the extra key.
+        """
+        home = tmp_path / "home"
+        _write_file(
+            home / ".claude" / "skills" / "humanizer" / "SKILL.md",
+            '---\nname: humanizer\ndescription: Polish writing.\npaths:\n  - "*.md"\n---\n'
+            "Make it concise.\n",
+        )
+        project = tmp_path / "app"
+        project.mkdir()
+
+        plan = resolve_plan(
+            from_harness="claude",
+            harness="cursor,zed",
+            project=project,
+            home=home,
+            skills=("humanizer",),
+        )
+        result = apply_plan(plan)
+
+        by_target = {r["target"]: r for r in result["results"]}
+        assert by_target["cursor"]["outcome"] == "written"
+        assert by_target["zed"]["outcome"] == "shared"
+        assert by_target["zed"]["path"] == ".agents/skills/humanizer/SKILL.md"
+        assert by_target["zed"]["shared_with"] == "cursor"
+
+        # Exactly one file exists on disk for the shared destination.
+        matches = list(project.glob(".agents/skills/*/SKILL.md"))
+        assert matches == [project / ".agents/skills/humanizer/SKILL.md"]
+        assert "paths:" in matches[0].read_text(encoding="utf-8")
 
 
 class TestPointerAndSupportFiles:

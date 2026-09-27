@@ -133,6 +133,43 @@ class CursorCodexAdapter:
         )
 
 
+class ZedAdapter:
+    """Adapter for Zed's Agent Skills (the cross-vendor `.agents/skills` standard).
+
+    Zed discovers skills from `~/.agents/skills/<name>/SKILL.md` (global) and
+    `<worktree>/.agents/skills/<name>/SKILL.md` (project-local). It documents only
+    `name`, `description`, and the optional `disable-model-invocation` frontmatter
+    fields, so Cinch emits no `paths`/`globs`.
+    """
+
+    target = "zed"
+
+    def render(self, doc: Doc) -> tuple[RenderedFile, ...]:
+        name = doc.name
+        relpath = f".agents/skills/{name}/SKILL.md"
+
+        meta: dict[str, str | list[str] | bool | None] = {
+            "name": name,
+            "description": doc.description,
+        }
+        if doc.kind == "command":
+            meta["disable-model-invocation"] = True
+
+        fm = _format_frontmatter(meta)
+        text = f"{fm}\n\n{doc.body}\n" if doc.body else f"{fm}\n"
+
+        support_source = doc.support if doc.support else None
+        support_dest = f".agents/skills/{name}" if doc.support else None
+        return (
+            RenderedFile(
+                relpath=relpath,
+                text=text,
+                support_source=support_source,
+                support_dest=support_dest,
+            ),
+        )
+
+
 class CopilotAdapter:
     target = "copilot"
 
@@ -358,6 +395,7 @@ ADAPTERS: dict[str, Adapter] = {
     "cline": ClineAdapter(),
     "opencode": OpenCodeAdapter(),
     "aider": AiderAdapter(),
+    "zed": ZedAdapter(),
 }
 
 

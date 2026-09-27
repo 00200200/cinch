@@ -42,17 +42,18 @@ Expected layout:
 
 ```
 .claude/skills/humanizer/SKILL.md   # Claude Code
-.agents/skills/humanizer/SKILL.md   # Cursor and Codex (shared path)
+.agents/skills/humanizer/SKILL.md   # Cursor, Codex, and Zed (shared path)
 .cinch.json                         # audit manifest
 ```
 
-Cursor and Codex both read `.agents/skills/`. Cinch writes that file once and marks the
+Cursor, Codex, and Zed all read `.agents/skills/`. Cinch writes that file once and marks the
 second target as `shared` in `.cinch.json` — not a conflict, and not a silent skip of a
 pre-existing hand-written rule.
 
 Then in your agent:
 
 - Claude Code / Cursor: `/humanizer`
+- Zed: `/humanizer` or `@humanizer`
 - Codex: `$humanizer`
 
 ## Other harnesses

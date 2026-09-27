@@ -3,7 +3,7 @@
 
 Generates 10, 50, and 100 synthetic skills and measures:
 - Frontmatter parsing throughput (skills/sec) and latency (µs)
-- Full translation across all 9 adapters (dialects/sec and latency per skill)
+- Full translation across every registered adapter (dialects/sec and latency per skill)
 - Plan resolution and wiring throughput (skills/sec and latency per skill)
 """
 
@@ -107,7 +107,7 @@ def build_docs(skills: list[str]) -> list[Doc]:
 
 
 def benchmark_translation(docs: list[Doc]) -> tuple[float, float]:
-    """Measure full translation across all 9 adapters (dialects/s and latency per skill)."""
+    """Measure full translation across every adapter (dialects/s and latency per skill)."""
     adapters = list(ADAPTERS.values())
     n = len(docs)
     num_adapters = len(adapters)
@@ -223,7 +223,7 @@ def run_benchmark() -> None:
     print()
     print(
         "| Batch Size | FM Parsing Throughput | FM Parse Latency | "
-        "Translation Throughput | Translation Latency (9 dialects) | "
+        f"Translation Throughput | Translation Latency ({len(ADAPTERS)} dialects) | "
         "Plan & Wire Throughput | Plan & Wire Latency |"
     )
     print(

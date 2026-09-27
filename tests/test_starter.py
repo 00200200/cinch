@@ -193,6 +193,9 @@ class TestStarterSkills:
         project.mkdir()
 
         monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        # Keep the test hermetic: an empty inventory must not depend on which AI
+        # CLIs happen to be installed on the machine running the suite.
+        monkeypatch.setattr("cinch.detect.path_binaries", lambda *args, **kwargs: set())
 
         mock_ask = MagicMock(return_value=[])
         mock_checkbox = MagicMock(return_value=MagicMock(ask=mock_ask))

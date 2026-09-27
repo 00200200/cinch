@@ -14,6 +14,7 @@ HARNESS_ORDER = (
     "cline",
     "opencode",
     "aider",
+    "zed",
 )
 
 PLANNED_HARNESSES = (
@@ -242,6 +243,19 @@ HARNESSES: dict[str, HarnessSpec] = {
         project_dirs={
             "skill": ".aider",
             "command": ".aider",
+        },
+    ),
+    "zed": _spec(
+        "zed",
+        "Zed",
+        binaries=("zed",),
+        home_markers=(".config/zed",),
+        project_markers=(".zed", ".agents/skills"),
+        skill_sources=("{home}/.agents/skills",),
+        project_dirs={
+            "skill": ".agents/skills",
+            "agent": ".agents/skills",
+            "command": ".agents/skills",
         },
     ),
     # Planned / Experimental harnesses (spec unverified)
