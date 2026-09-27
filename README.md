@@ -9,7 +9,7 @@
     <a href="https://github.com/00200200/cinch/actions/workflows/ci.yml"><img src="https://github.com/00200200/cinch/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
     <a href="https://codecov.io/gh/00200200/cinch"><img src="https://codecov.io/gh/00200200/cinch/graph/badge.svg" alt="codecov"></a>
     <a href="https://pypi.org/project/cinch-init/"><img src="https://img.shields.io/pypi/v/cinch-init.svg?color=2ee6d6" alt="PyPI"></a>
-    <img src="https://img.shields.io/badge/dialects-9%20supported-2ee6d6.svg" alt="9 Supported Harnesses">
+    <img src="https://img.shields.io/badge/dialects-10%20supported-2ee6d6.svg" alt="10 Supported Harnesses">
     <img src="https://img.shields.io/badge/astral-uv%20ready-4c8dff.svg" alt="UV Powered">
     <img src="https://img.shields.io/badge/telemetry-zero%20%2F%20local--first-3fb950.svg" alt="100% Local First">
   </p>
@@ -203,8 +203,27 @@ Every mapping is backed by vendor documentation and verified through automated c
 | **Cline** | `.clinerules/<n>.md` | `paths` | Clean markdown rule injection |
 | **OpenCode** | `.opencode/commands/<n>.md` | `description` | Native command configuration |
 | **Aider** | `.aider/<n>.md` | None (Markdown body) | Automatically merges `read:` in `.aider.conf.yml` |
+| **Zed** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `disable-model-invocation` | Shared with Cursor/Codex; commands become non-invocable skills |
 
 *Planned Harnesses:* Grok CLI, Continue.
+
+### Zed
+
+Zed's agent reads [Agent Skills](https://zed.dev/docs/ai/skills) from the same cross-vendor
+`.agents/skills/` layout Cinch already writes for Cursor and Codex:
+
+- **Global:** `~/.agents/skills/<name>/SKILL.md`
+- **Project-local:** `<worktree>/.agents/skills/<name>/SKILL.md`
+
+Type `/` in the agent panel and pick the skill, or load it with an `@<skill>` mention. The
+Skills Manager opens with `cmd-alt-l` (macOS) / `ctrl-alt-l` (Linux/Windows). Project-local
+skills load only from a [trusted worktree](https://zed.dev/docs/ai/skills). A skill folder
+may also contain `scripts/`, `references/`, and `assets/`; Cinch copies those alongside the
+`SKILL.md` when the source ships them.
+
+Because Zed shares `.agents/skills/` with Cursor and Codex, a `--harness cursor,zed` run
+writes the file once (as Cursor's rendering, which includes `paths`) and reports Zed as
+`shared`. Wire `--harness zed` on its own for Zed's minimal `name`/`description` frontmatter.
 
 ---
 
@@ -274,7 +293,7 @@ Cinch is written in pure, dependency-light Python and designed for microsecond-s
 | Operation | Throughput | Latency |
 | :--- | ---: | ---: |
 | **Frontmatter Parsing** | **245,000+** skills/s | **4.0 µs** |
-| **9-Dialect Translation** | **500,000+** dialects/s | **0.02 ms** / skill |
+| **10-Dialect Translation** | **500,000+** dialects/s | **0.02 ms** / skill |
 | **End-to-End Plan & Disk Wire** | **800+** skills/s | **1.2 ms** / skill |
 
 Zero perceptible lag in your CLI or agent loops.

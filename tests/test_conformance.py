@@ -1,4 +1,4 @@
-"""Conformance test suite verifying all 9 harness adapters against vendor specs."""
+"""Conformance test suite verifying all 10 harness adapters against vendor specs."""
 
 from __future__ import annotations
 

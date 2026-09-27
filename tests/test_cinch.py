@@ -112,11 +112,13 @@ class TestHarnessPresence:
             "cline",
             "opencode",
             "aider",
+            "zed",
         ]
         titles = {item.id: item.title for item in detect_harnesses(home=tmp_path, binaries=set())}
         assert "OpenAI" not in titles["codex"]
         assert titles["codex"] == "Codex"
         assert titles["claude"] == "Claude Code"
+        assert titles["zed"] == "Zed"
 
 
 class TestInventory:
@@ -328,6 +330,60 @@ class TestCliNoninteractive:
         assert manifest["harness"] == "cursor"
         assert (project / ".agents/skills" / "mkl-humanize" / "SKILL.md").is_file()
         assert json.loads((project / "package.json").read_text(encoding="utf-8"))["name"] == "web"
+
+    def test_init_zed_noninteractive(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        home = tmp_path / "home"
+        skill(home / ".claude" / "skills", "humanizer")
+        project = tmp_path / "app"
+        project.mkdir()
+        code = main(
+            [
+                "init",
+                str(project),
+                "--from-harness",
+                "claude",
+                "--harness",
+                "zed",
+                "--skills",
+                "humanizer",
+                "--yes",
+                "--home",
+                str(home),
+            ]
+        )
+        assert code == 0
+        out = capsys.readouterr().out
+        assert "Zed" in out
+        skill_file = project / ".agents" / "skills" / "humanizer" / "SKILL.md"
+        assert skill_file.is_file()
+        assert "Use this skill." in skill_file.read_text(encoding="utf-8")
+        manifest = json.loads((project / ".cinch.json").read_text(encoding="utf-8"))
+        assert manifest["source_harness"] == "claude"
+        assert manifest["targets"] == ["zed"]
+        assert manifest["results"][0]["target"] == "zed"
+        assert manifest["results"][0]["outcome"] == "written"
+
+    def test_preview_zed(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        home = tmp_path / "home"
+        skill(home / ".claude" / "skills", "humanizer")
+        code = main(
+            [
+                "preview",
+                "humanizer",
+                "--from-harness",
+                "claude",
+                "--target",
+                "zed",
+                "--home",
+                str(home),
+            ]
+        )
+        assert code == 0
+        out = capsys.readouterr().out
+        assert "Cinch Preview: humanizer -> target dialect: zed" in out
+        assert "[file: .agents/skills/humanizer/SKILL.md]" in out
 
     def test_inventory_lists_that_harness(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
