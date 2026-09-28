@@ -1,0 +1,32 @@
+[
+  {
+    "id": 16,
+    "title": "feat(dialect): Add Grok CLI / xAI system prompt generator with tool schemas",
+    "labels": ["enhancement", "help wanted"],
+    "body": "## Problem Statement / Background\n\nxAI's Grok Bot and Grok CLI support agentic workflows and custom system routines. Currently, Cinch supports 10 harnesses but lacks a native adapter for Grok.\n\n## Inspiration from State-of-the-Art Tools\n\nxAI Grok documentation specifies system instruction formatting and function definitions adhering to standard OpenAPI/JSON schema function calling.\n\n## Proposed Solution & Architecture\n\nImplement `src/cinch/dialects/grok.py`:\n1. Compile Cinch skills to Grok routine format (`.grok/skills/<name>.md`).\n2. Strip unsupported frontmatter and inject markdown instructions with function parameters.\n3. Add unit tests and conformance fixtures in `tests/conformance/grok/`.\n\n## Acceptance Criteria & Test Plan\n\n- [ ] `cinch sync --target grok` generates valid `.grok/skills/`.\n- [ ] Unit tests in `tests/test_translation.py` verify output formatting.\n- [ ] Documentation updated in README harness matrix."
+  },
+  {
+    "id": 17,
+    "title": "feat(mcp): Bidirectional MCP prompt exporter (expose Cinch skills as MCP prompts)",
+    "labels": ["enhancement", "help wanted"],
+    "body": "## Problem Statement / Background\n\nMCP clients (like Claude Desktop, Cursor, and Zed) support `prompts/list` and `prompts/get`. Exposing Cinch skills through an MCP prompt server allows any MCP-compatible client to invoke Cinch skills dynamically without manual installation.\n\n## Inspiration from State-of-the-Art Tools\n\nAnthropic's Model Context Protocol Python SDK (`mcp.server.fastmcp`) allows defining prompts using decorators.\n\n## Proposed Solution & Architecture\n\nImplement `cinch mcp-server`:\n1. Spin up a lightweight FastMCP STDIO server.\n2. Expose all discovered skills in `.skills/` as MCP Prompts.\n3. Support dynamic arguments via prompt templates.\n\n## Acceptance Criteria & Test Plan\n\n- [ ] Server responds to `prompts/list` and `prompts/get` via JSON-RPC.\n- [ ] Fast startup (<50ms) using zero heavy dependencies.\n- [ ] Integration test with mock MCP client."
+  },
+  {
+    "id": 18,
+    "title": "feat(lsp): Implement lightweight Language Server Protocol (LSP) for skill frontmatter autocompletion",
+    "labels": ["enhancement", "help wanted"],
+    "body": "## Problem Statement / Background\n\nWhen writing skills in VS Code, Cursor, or Zed, authors lack autocompletion for frontmatter fields (`name`, `description`, `paths`, `compatibility`, `variables`), leading to typos and invalid configurations.\n\n## Inspiration from State-of-the-Art Tools\n\n`yaml-language-server` and `ast-grep` provide real-time diagnostics, hover tooltips, and completion items using standard LSP JSON-RPC.\n\n## Proposed Solution & Architecture\n\nImplement `cinch lsp`:\n1. Single-file stdlib JSON-RPC LSP server.\n2. Provides completions for schema fields and dialect names.\n3. Emits hover documentation explaining harness-specific limitations.\n\n## Acceptance Criteria & Test Plan\n\n- [ ] Works with any LSP-compliant editor (VS Code, Zed, Neovim).\n- [ ] Diagnostics flagged on unrecognized frontmatter keys.\n- [ ] Unit tests covering LSP request/response cycle."
+  },
+  {
+    "id": 19,
+    "title": "feat(policy): Corporate skill compliance & safety policy enforcement (`.cinchpolicy.yml`)",
+    "labels": ["enhancement", "help wanted"],
+    "body": "## Problem Statement / Background\n\nEnterprise security teams require strict governance over AI prompts (e.g. banning `eval`, forbidding outbound network tool invocations, requiring approved license tags, enforcing maximum token budgets).\n\n## Inspiration from State-of-the-Art Tools\n\nOpen Policy Agent (OPA), `conftest`, and Semgrep enforce declarative security policies across repository assets.\n\n## Proposed Solution & Architecture\n\n1. Support `.cinchpolicy.yml` defining validation rules.\n2. Check skills during `cinch check` against the policy.\n3. Fail CI with descriptive violation messages if a rule is breached.\n\n## Acceptance Criteria & Test Plan\n\n- [ ] Configurable policies for disallowed keywords, missing fields, and token limits.\n- [ ] Clean CLI error reporting with exit code 1.\n- [ ] Unit tests for policy evaluation."
+  },
+  {
+    "id": 20,
+    "title": "feat(wasm): WebAssembly-compiled Cinch engine for interactive in-browser skill playground",
+    "labels": ["enhancement", "help wanted"],
+    "body": "## Problem Statement / Background\n\nProspective users and team members want to try Cinch and see how their markdown skills translate across 10 dialects without installing Python or cloning a repository.\n\n## Inspiration from State-of-the-Art Tools\n\n`pyodide`, Ruff's WebAssembly playground, and SQL.js run Python and Rust tooling directly in browser clients with zero server backend.\n\n## Proposed Solution & Architecture\n\n1. Package Cinch core translation logic for Pyodide / WebAssembly.\n2. Build a minimal static HTML/JS playground hosted on GitHub Pages.\n3. Split-screen: Left is markdown editor, Right shows live tabs for all 10 compiled dialects.\n\n## Acceptance Criteria & Test Plan\n\n- [ ] Compiles skills in-browser in <10ms via Pyodide.\n- [ ] Deployed to `00200200.github.io/cinch`.\n- [ ] Automated end-to-end smoke test."
+  }
+]
