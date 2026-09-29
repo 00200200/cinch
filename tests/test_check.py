@@ -452,3 +452,124 @@ description: Too short
     assert "W001" in err_out
     assert "W002" in err_out
     assert "Found 2 diagnostics" in err_out
+
+
+# ---------------------------------------------------------------------------
+# --strict mode (SkillManifestSchema)
+# ---------------------------------------------------------------------------
+
+
+def test_strict_valid_skill(tmp_path: Path) -> None:
+    """Strict mode accepts a fully valid skill with known optional keys."""
+    skill_dir = tmp_path / "strict-ok"
+    _create_skill(
+        skill_dir,
+        """\
+---
+name: strict-ok
+description: A comprehensive description of the skill
+version: "1.0.0"
+author: cinch
+license: MIT
+paths:
+  - "**/*.py"
+---
+# Body
+""",
+    )
+
+    diags = lint_skill(skill_dir, strict=True)
+    assert diags == []
+    assert main(["check", "--strict", str(skill_dir)]) == 0
+
+
+def test_strict_missing_description_is_error(tmp_path: Path) -> None:
+    """In --strict, missing description is an error (E004), not a warning."""
+    skill_dir = tmp_path / "no-desc"
+    _create_skill(
+        skill_dir,
+        """\
+---
+name: no-desc
+---
+# Body
+""",
+    )
+
+    diags = lint_skill(skill_dir, strict=True)
+    assert any(d.rule == "E004" and d.severity == "error" for d in diags)
+    assert main(["check", "--strict", str(skill_dir)]) == 1
+
+
+def test_strict_unrecognized_key_with_hint(tmp_path: Path) -> None:
+    """Unrecognized keys produce E005 with a misspelling hint (desc -> description)."""
+    skill_dir = tmp_path / "typo-key"
+    _create_skill(
+        skill_dir,
+        """\
+---
+name: typo-key
+desc: Convert robotic AI prose into punchy writing
+---
+# Body
+""",
+    )
+
+    diags = lint_skill(skill_dir, strict=True)
+    e005 = [d for d in diags if d.rule == "E005"]
+    assert e005
+    assert e005[0].severity == "error"
+    assert e005[0].line is not None
+    assert "desc" in e005[0].message
+    assert "description" in e005[0].message
+    assert "Did you mean" in e005[0].message
+    # Also missing description since only `desc` was provided
+    assert any(d.rule == "E004" for d in diags)
+    assert main(["check", "--strict", str(skill_dir)]) == 1
+
+
+def test_strict_invalid_glob_is_error(tmp_path: Path) -> None:
+    """In --strict, invalid path globs are errors (E006)."""
+    skill_dir = tmp_path / "bad-glob-strict"
+    _create_skill(
+        skill_dir,
+        r"""---
+name: bad-glob-strict
+description: Valid description of the skill
+paths:
+  - "src\windows\path\*.py"
+---
+# Body
+""",
+    )
+
+    diags = lint_skill(skill_dir, strict=True)
+    assert any(d.rule == "E006" and d.severity == "error" for d in diags)
+    assert main(["check", "--strict", str(skill_dir)]) == 1
+
+
+def test_strict_invalid_yaml_still_e002(tmp_path: Path) -> None:
+    """Strict mode still reports invalid YAML as E002 with a file line."""
+    skill_dir = tmp_path / "bad-yaml-strict"
+    _create_skill(
+        skill_dir,
+        """\
+---
+name: bad-yaml-strict
+description: "unclosed quote
+---
+# Body
+""",
+    )
+
+    diags = lint_skill(skill_dir, strict=True)
+    assert any(d.rule == "E002" and d.severity == "error" and d.line is not None for d in diags)
+    assert main(["check", "--strict", str(skill_dir)]) == 1
+
+
+def test_suggest_key_desc() -> None:
+    from cinch.schema import suggest_key
+
+    assert suggest_key("desc") == "description"
+    assert suggest_key("descripton") == "description"
+    assert suggest_key("path") == "paths"
