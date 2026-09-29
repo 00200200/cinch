@@ -9,7 +9,7 @@
     <a href="https://github.com/00200200/cinch/actions/workflows/ci.yml"><img src="https://github.com/00200200/cinch/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
     <a href="https://codecov.io/gh/00200200/cinch"><img src="https://codecov.io/gh/00200200/cinch/graph/badge.svg" alt="codecov"></a>
     <a href="https://pypi.org/project/cinch-init/"><img src="https://img.shields.io/pypi/v/cinch-init.svg?color=2ee6d6" alt="PyPI"></a>
-    <img src="https://img.shields.io/badge/dialects-10%20supported-2ee6d6.svg" alt="10 Supported Harnesses">
+    <img src="https://img.shields.io/badge/dialects-11%20supported-2ee6d6.svg" alt="11 Supported Harnesses">
     <img src="https://img.shields.io/badge/astral-uv%20ready-4c8dff.svg" alt="UV Powered">
     <img src="https://img.shields.io/badge/telemetry-zero%20%2F%20local--first-3fb950.svg" alt="100% Local First">
   </p>
@@ -34,6 +34,7 @@ The AI coding assistant ecosystem is deeply fragmented. Every developer and team
 - **Windsurf / Devin** parses `.devin/rules/<n>.md` with strict character limits
 - **Cline** reads `.clinerules/<n>.md`
 - **Aider** ignores unconfigured files and requires entries appended to `.aider.conf.yml`
+- **Continue.dev** expects `.continue/prompts/<n>.prompt` slash-command templates (and optional `customCommands` in `config.json`)
 
 Whenever you switch harnesses, try a new AI tool, or share custom workflows with your team, you're forced to manually rewrite prompt files, reformat frontmatter, and hunt down obscure config paths.
 
@@ -186,6 +187,26 @@ read:
 ```
 </details>
 
+<details>
+<summary><strong>Continue</strong> (<code>.continue/prompts/humanizer.prompt</code>)</summary>
+
+```markdown
+---
+name: "humanizer"
+description: "Convert robotic AI prose into punchy engineering writing"
+invokable: true
+---
+
+{{{ input }}}
+
+# Humanizer Guidelines
+- Cut throat-clearing openers ("Certainly! Here is...").
+- Use active voice and concrete verbs.
+
+<!-- cinch paths: **/*.md -->
+```
+</details>
+
 ---
 
 ## 🤝 Supported Harness Matrix
@@ -204,8 +225,24 @@ Every mapping is backed by vendor documentation and verified through automated c
 | **OpenCode** | `.opencode/commands/<n>.md` | `description` | Native command configuration |
 | **Aider** | `.aider/<n>.md` | None (Markdown body) | Automatically merges `read:` in `.aider.conf.yml` |
 | **Zed** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `disable-model-invocation` | Shared with Cursor/Codex; commands become non-invocable skills |
+| **Continue** | `.continue/prompts/<n>.prompt` | `name`, `description`, `invokable` | Slash commands; merges `customCommands` into existing `.continue/config.json` |
 
-*Planned Harnesses:* Grok CLI, Continue.
+*Planned Harnesses:* Grok CLI.
+
+### Continue
+
+Continue loads workspace prompt files from [`.continue/prompts/`](https://docs.continue.dev/customize/deep-dives/prompts).
+Cinch compiles each skill, agent, or command to `<name>.prompt` with `invokable: true` so it
+appears as a `/<name>` slash command in Chat, Plan, and Agent mode.
+
+The prompt body preserves Handlebars context variables (`{{{ input }}}`, `{{{ current_file }}}`, …),
+upgrades bare `{{ var }}` tokens to the triple-brace form, and records Cinch `paths` as an HTML
+comment. When a project already has `.continue/config.json`, Cinch also merges a matching
+`customCommands` entry for older Continue installs that still read slash commands from config.
+
+```bash
+uvx cinch-init --from-harness claude --harness continue --skills humanizer --yes
+```
 
 ### Zed
 
@@ -293,7 +330,7 @@ Cinch is written in pure, dependency-light Python and designed for microsecond-s
 | Operation | Throughput | Latency |
 | :--- | ---: | ---: |
 | **Frontmatter Parsing** | **245,000+** skills/s | **4.0 µs** |
-| **10-Dialect Translation** | **500,000+** dialects/s | **0.02 ms** / skill |
+| **11-Dialect Translation** | **500,000+** dialects/s | **0.02 ms** / skill |
 | **End-to-End Plan & Disk Wire** | **800+** skills/s | **1.2 ms** / skill |
 
 Zero perceptible lag in your CLI or agent loops.

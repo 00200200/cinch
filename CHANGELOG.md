@@ -18,6 +18,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and [Semantic Ver
 - Respect `NO_COLOR` and `FORCE_COLOR=0`/`false` for plain CLI output. Rich treats any non-empty `FORCE_COLOR` (including `0`) as a TTY, which broke scripted/demo stdout and pytest captures under `FORCE_COLOR=0`.
 
 ### Added
+- **Continue.dev adapter** — compile skills, agents, and commands into `.continue/prompts/<name>.prompt` with `invokable: true` slash commands; preserve Handlebars (`{{{ input }}}`); merge `customCommands` into an existing `.continue/config.json`
 - `cinch check --audit-secrets` — stdlib secret/token scanner for known API key formats, high-entropy strings, and hardcoded user paths (exits 1 on findings)
 - **Zed adapter** — compile skills, agents, and commands into Zed's native Agent Skills layout at `.agents/skills/<name>/SKILL.md` (commands emit `disable-model-invocation: true`); shares the `.agents/skills` path with Cursor and Codex
 - `cinch check [path]` — comprehensive skill linter & validator verifying YAML frontmatter, naming conventions, path globs, and Windsurf size constraints with Rich diagnostics table
