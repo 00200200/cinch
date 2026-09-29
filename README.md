@@ -34,6 +34,7 @@ The AI coding assistant ecosystem is deeply fragmented. Every developer and team
 - **Windsurf / Devin** parses `.devin/rules/<n>.md` with strict character limits
 - **Cline** reads `.clinerules/<n>.md`
 - **Aider** ignores unconfigured files and requires entries appended to `.aider.conf.yml`
+- **Continue.dev** expects `.continue/prompts/<n>.prompt` slash-command templates (and optional `customCommands` in `config.json`)
 
 Whenever you switch harnesses, try a new AI tool, or share custom workflows with your team, you're forced to manually rewrite prompt files, reformat frontmatter, and hunt down obscure config paths.
 
@@ -186,6 +187,26 @@ read:
 ```
 </details>
 
+<details>
+<summary><strong>Continue</strong> (<code>.continue/prompts/humanizer.prompt</code>)</summary>
+
+```markdown
+---
+name: "humanizer"
+description: "Convert robotic AI prose into punchy engineering writing"
+invokable: true
+---
+
+{{{ input }}}
+
+# Humanizer Guidelines
+- Cut throat-clearing openers ("Certainly! Here is...").
+- Use active voice and concrete verbs.
+
+<!-- cinch paths: **/*.md -->
+```
+</details>
+
 ---
 
 ## 🤝 Supported Harness Matrix
@@ -204,9 +225,24 @@ Every mapping is backed by vendor documentation and verified through automated c
 | **OpenCode** | `.opencode/commands/<n>.md` | `description` | Native command configuration |
 | **Aider** | `.aider/<n>.md` | None (Markdown body) | Automatically merges `read:` in `.aider.conf.yml` |
 | **Zed** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `disable-model-invocation` | Shared with Cursor/Codex; commands become non-invocable skills |
+| **Continue** | `.continue/prompts/<n>.prompt` | `name`, `description`, `invokable` | Slash commands; merges `customCommands` into existing `.continue/config.json` |
 | **Grok** | `.grok/skills/<n>/SKILL.md` | `name`, `description`, `paths`, `when-to-use`, `allowed-tools` | xAI Grok Build/CLI; unsupported source frontmatter stripped |
 
-*Planned Harnesses:* Continue.
+### Continue
+
+Continue loads workspace prompt files from [`.continue/prompts/`](https://docs.continue.dev/customize/deep-dives/prompts).
+Cinch compiles each skill, agent, or command to `<name>.prompt` with `invokable: true` so it
+appears as a `/<name>` slash command in Chat, Plan, and Agent mode.
+
+The prompt body preserves Handlebars context variables (`{{{ input }}}`, `{{{ current_file }}}`, …),
+upgrades bare `{{ var }}` tokens to the triple-brace form, and records Cinch `paths` as an HTML
+comment. When a project already has `.continue/config.json`, Cinch also merges a matching
+`customCommands` entry for older Continue installs that still read slash commands from config.
+
+```bash
+uvx cinch-init --from-harness claude --harness continue --skills humanizer --yes
+```
+
 
 ### Zed
 

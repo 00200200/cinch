@@ -113,6 +113,7 @@ class TestHarnessPresence:
             "opencode",
             "aider",
             "zed",
+            "continue",
             "grok",
         ]
         titles = {item.id: item.title for item in detect_harnesses(home=tmp_path, binaries=set())}
@@ -120,6 +121,7 @@ class TestHarnessPresence:
         assert titles["codex"] == "Codex"
         assert titles["claude"] == "Claude Code"
         assert titles["zed"] == "Zed"
+        assert titles["continue"] == "Continue"
         assert titles["grok"] == "Grok"
 
 
@@ -387,6 +389,47 @@ class TestCliNoninteractive:
         assert "Cinch Preview: humanizer -> target dialect: zed" in out
         assert "[file: .agents/skills/humanizer/SKILL.md]" in out
 
+    def test_init_continue_noninteractive(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        home = tmp_path / "home"
+        skill(home / ".claude" / "skills", "humanizer")
+        project = tmp_path / "app"
+        project.mkdir()
+        code = main(
+            [
+                "init",
+                str(project),
+                "--from-harness",
+                "claude",
+                "--harness",
+                "continue",
+                "--skills",
+                "humanizer",
+                "--yes",
+                "--home",
+                str(home),
+            ]
+        )
+        assert code == 0
+        out = capsys.readouterr().out
+        assert "Continue" in out
+        prompt_file = project / ".continue" / "prompts" / "humanizer.prompt"
+        assert prompt_file.is_file()
+        text = prompt_file.read_text(encoding="utf-8")
+        assert "invokable: true" in text
+        assert "{{{ input }}}" in text
+        assert "Use this skill." in text
+        manifest = json.loads((project / ".cinch.json").read_text(encoding="utf-8"))
+        assert manifest["source_harness"] == "claude"
+        assert manifest["targets"] == ["continue"]
+        written_prompts = [
+            r
+            for r in manifest["results"]
+            if r["path"].endswith(".prompt") and r["outcome"] == "written"
+        ]
+        assert written_prompts
+
     def test_init_grok_noninteractive(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
@@ -420,6 +463,26 @@ class TestCliNoninteractive:
         assert manifest["targets"] == ["grok"]
         assert manifest["results"][0]["target"] == "grok"
         assert manifest["results"][0]["outcome"] == "written"
+
+    def test_preview_continue(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        home = tmp_path / "home"
+        skill(home / ".claude" / "skills", "humanizer")
+        code = main(
+            [
+                "preview",
+                "humanizer",
+                "--from-harness",
+                "claude",
+                "--target",
+                "continue",
+                "--home",
+                str(home),
+            ]
+        )
+        assert code == 0
+        out = capsys.readouterr().out
+        assert "Cinch Preview: humanizer -> target dialect: continue" in out
+        assert "[file: .continue/prompts/humanizer.prompt]" in out
 
     def test_preview_grok(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         home = tmp_path / "home"

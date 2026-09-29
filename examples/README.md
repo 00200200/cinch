@@ -62,6 +62,9 @@ Then in your agent:
 # Copilot instructions + Gemini command from the same skill
 cinch init --from-dir examples/skills --harness copilot,gemini --skills security-auditor --yes
 
+# Continue.dev slash-command prompt
+cinch init --from-dir examples/skills --harness continue --skills humanizer --yes
+
 # Grok Build / Grok CLI native skills under .grok/skills/
 cinch init --from-dir examples/skills --harness grok --skills humanizer --yes
 

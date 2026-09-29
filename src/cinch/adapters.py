@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from cinch.doc import Doc
 
@@ -453,6 +455,124 @@ class AiderAdapter:
         return tuple(files)
 
 
+_DOUBLE_BRACE_VAR = re.compile(r"(?<!\{)\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}(?!\})")
+
+
+def _continue_variables(doc: Doc) -> list[str]:
+    """Pull variable names from Cinch frontmatter without inventing new ones."""
+    raw = doc.extra_meta.get("variables")
+    if raw is None:
+        return []
+    if isinstance(raw, dict):
+        return [str(key) for key in raw]
+    if isinstance(raw, str):
+        return [raw]
+    if isinstance(raw, (list, tuple)):
+        names: list[str] = []
+        for item in raw:
+            if isinstance(item, dict):
+                names.extend(str(key) for key in item)
+            else:
+                names.append(str(item))
+        return names
+    return []
+
+
+def _hb(name: str) -> str:
+    """Continue Handlebars triple-brace token, e.g. {{{ input }}}."""
+    return "{{{ " + name + " }}}"
+
+
+def _continue_prompt_body(doc: Doc) -> str:
+    """Body for Continue .prompt files: preserve Handlebars, map {{var}} → {{{ var }}}."""
+    body = doc.body or ""
+    # Upgrade bare Mustache double-braces to Continue's triple-brace form without
+    # touching already-valid {{{ name }}} expressions.
+    body = _DOUBLE_BRACE_VAR.sub(lambda m: _hb(m.group(1)), body)
+
+    for name in _continue_variables(doc):
+        if name == "input":
+            continue
+        token = _hb(name)
+        compact = "{{{" + name + "}}}"
+        if token not in body and compact not in body:
+            body = f"{token}\n{body}" if body else f"{token}\n"
+
+    # Classic Continue slash-command context: user text after `/name` lands in {{{ input }}}.
+    if _hb("input") not in body and "{{{input}}}" not in body:
+        body = f"{_hb('input')}\n\n{body}" if body else f"{_hb('input')}\n"
+
+    if doc.paths:
+        globs = ", ".join(doc.paths)
+        note = f"<!-- cinch paths: {globs} -->"
+        if note not in body:
+            body = f"{body.rstrip()}\n\n{note}\n"
+
+    if doc.support:
+        support_dest = f".cinch/skills/{doc.name}"
+        note = f"Supporting files located in `{support_dest}/`."
+        if note not in body:
+            body = f"{body.rstrip()}\n\n{note}\n"
+
+    return body if body.endswith("\n") else f"{body}\n"
+
+
+class ContinueAdapter:
+    """Adapter for Continue.dev prompt files and slash commands.
+
+    Skills, agents, and commands compile to `.continue/prompts/<name>.prompt` with
+    Continue's prompt frontmatter (`name`, `description`, `invokable`). The body keeps
+    Handlebars context variables (`{{{ input }}}`, `{{{ current_file }}}`, …). When a
+    project already has `.continue/config.json`, Cinch merges a matching
+    `customCommands` shortcut so older Continue installs still expose `/<name>`.
+    """
+
+    target = "continue"
+
+    def render(self, doc: Doc) -> tuple[RenderedFile, ...]:
+        name = doc.name
+        relpath = f".continue/prompts/{name}.prompt"
+        prompt_body = _continue_prompt_body(doc)
+
+        meta: dict[str, str | list[str] | bool | None] = {
+            "name": name,
+            "description": doc.description,
+            "invokable": True,
+        }
+        fm = _format_frontmatter(meta)
+        text = f"{fm}\n\n{prompt_body}" if prompt_body.strip() else f"{fm}\n"
+
+        files: list[RenderedFile] = [
+            RenderedFile(relpath=relpath, text=text),
+        ]
+
+        if doc.support:
+            support_dest = f".cinch/skills/{name}"
+            files.append(
+                RenderedFile(
+                    relpath=f"{support_dest}/SKILL.md",
+                    text=f"# {name}\n\n{doc.body}\n",
+                    support_source=doc.support,
+                    support_dest=support_dest,
+                )
+            )
+
+        # Register slash-command shortcut when config.json already exists (wire skips create).
+        command: dict[str, Any] = {
+            "name": name,
+            "description": doc.description,
+            "prompt": prompt_body.rstrip("\n"),
+        }
+        files.append(
+            RenderedFile(
+                relpath=".continue/config.json",
+                text=json.dumps({"customCommands": [command]}, indent=2) + "\n",
+                mode="merge",
+            )
+        )
+        return tuple(files)
+
+
 ADAPTERS: dict[str, Adapter] = {
     "claude": ClaudeAdapter(),
     "cursor": CursorCodexAdapter("cursor"),
@@ -464,6 +584,7 @@ ADAPTERS: dict[str, Adapter] = {
     "opencode": OpenCodeAdapter(),
     "aider": AiderAdapter(),
     "zed": ZedAdapter(),
+    "continue": ContinueAdapter(),
     "grok": GrokAdapter(),
 }
 

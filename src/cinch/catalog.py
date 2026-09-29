@@ -15,10 +15,11 @@ HARNESS_ORDER = (
     "opencode",
     "aider",
     "zed",
+    "continue",
     "grok",
 )
 
-PLANNED_HARNESSES = ("continue",)
+PLANNED_HARNESSES = ()
 
 PURPOSES = ("python", "ml", "data", "web", "docs", "security", "agents")
 
@@ -256,6 +257,24 @@ HARNESSES: dict[str, HarnessSpec] = {
             "command": ".agents/skills",
         },
     ),
+    "continue": _spec(
+        "continue",
+        "Continue",
+        binaries=("continue",),
+        home_markers=(".continue",),
+        project_markers=(".continue",),
+        skill_sources=("{home}/.continue/prompts", "{home}/.continue/skills"),
+        agent_sources=("{home}/.continue/agents",),
+        hook_sources=("{home}/.continue/hooks",),
+        command_sources=("{home}/.continue/prompts", "{home}/.continue/rules"),
+        mcp_sources=("{home}/.continue/config.json",),
+        project_dirs={
+            "skill": ".continue/prompts",
+            "agent": ".continue/prompts",
+            "hook": ".continue/hooks",
+            "command": ".continue/prompts",
+        },
+    ),
     "grok": _spec(
         "grok",
         "Grok",
@@ -271,25 +290,6 @@ HARNESSES: dict[str, HarnessSpec] = {
             "agent": ".grok/skills",
             "command": ".grok/skills",
             "hook": ".grok/hooks",
-        },
-    ),
-    # Planned / Experimental harnesses (spec unverified)
-    "continue": _spec(
-        "continue",
-        "Continue",
-        binaries=("continue",),
-        home_markers=(".continue",),
-        project_markers=(".continue",),
-        skill_sources=("{home}/.continue/skills",),
-        agent_sources=("{home}/.continue/agents",),
-        hook_sources=("{home}/.continue/hooks",),
-        command_sources=("{home}/.continue/prompts", "{home}/.continue/rules"),
-        mcp_sources=("{home}/.continue/config.json",),
-        project_dirs={
-            "skill": ".continue/skills",
-            "agent": ".continue/agents",
-            "hook": ".continue/hooks",
-            "command": ".continue/rules",
         },
     ),
 }

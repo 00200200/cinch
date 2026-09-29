@@ -144,6 +144,13 @@ def _apply_file(
 
 
 def _merge_file(dest: Path, addition: str) -> Outcome:
+    # Continue config.json: only register slash-command shortcuts when the file
+    # already exists — never invent a bare config that could clobber Continue setup.
+    if dest.name == "config.json" and addition.lstrip().startswith("{"):
+        if not dest.exists():
+            return "unchanged"
+        return _merge_continue_config(dest, addition)
+
     if not dest.exists():
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(addition, encoding="utf-8")
@@ -169,6 +176,57 @@ def _merge_file(dest: Path, addition: str) -> Outcome:
         new_text = existing_text.rstrip() + "\n" + addition
 
     dest.write_text(new_text, encoding="utf-8")
+    return "written"
+
+
+def _merge_continue_config(dest: Path, addition: str) -> Outcome:
+    """Merge customCommands entries into an existing Continue config.json."""
+    try:
+        existing = json.loads(dest.read_text(encoding="utf-8"))
+        patch = json.loads(addition)
+    except json.JSONDecodeError:
+        return "unchanged"
+
+    if not isinstance(existing, dict) or not isinstance(patch, dict):
+        return "unchanged"
+
+    incoming = patch.get("customCommands")
+    if not isinstance(incoming, list) or not incoming:
+        return "unchanged"
+
+    commands = existing.get("customCommands")
+    if not isinstance(commands, list):
+        commands = []
+
+    by_name: dict[str, dict] = {}
+    order: list[str] = []
+    passthrough: list[object] = []
+    for item in commands:
+        if isinstance(item, dict) and item.get("name"):
+            name = str(item["name"])
+            by_name[name] = item
+            order.append(name)
+        else:
+            passthrough.append(item)
+
+    before = {name: dict(cmd) for name, cmd in by_name.items()}
+    for item in incoming:
+        if not isinstance(item, dict) or not item.get("name"):
+            continue
+        name = str(item["name"])
+        by_name[name] = item
+        if name not in order:
+            order.append(name)
+
+    if {name: dict(cmd) for name, cmd in by_name.items()} == before:
+        return "unchanged"
+
+    merged: list[object] = list(passthrough)
+    for name in order:
+        merged.append(by_name[name])
+
+    existing["customCommands"] = merged
+    dest.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
     return "written"
 
 

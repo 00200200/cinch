@@ -294,46 +294,15 @@ def _parse_frontmatter(
     return meta, field_lines, errors, body, body_start_line
 
 
-def lint_skill(skill_dir_or_file: Path) -> list[Diagnostic]:
-    """Validate and lint a single SKILL.md file or skill directory against rules."""
-    path = Path(skill_dir_or_file)
-    if path.is_dir():
-        skill_file = path / "SKILL.md"
-        skill_dir = path
-    else:
-        skill_file = path
-        skill_dir = path.parent
-
-    # E001: SKILL.md does not exist in skill directory, or file cannot be read
-    if not skill_file.is_file():
-        return [
-            Diagnostic(
-                path=skill_file,
-                line=None,
-                severity="error",
-                rule="E001",
-                message=f"SKILL.md does not exist at {skill_file}",
-            )
-        ]
-
-    try:
-        content = skill_file.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as exc:
-        return [
-            Diagnostic(
-                path=skill_file,
-                line=None,
-                severity="error",
-                rule="E001",
-                message=f"Cannot read SKILL.md at {skill_file}: {exc}",
-            )
-        ]
-
-    # E002: Invalid YAML frontmatter syntax
-    meta, field_lines, fm_errors, body, body_start_line = _parse_frontmatter(content, skill_file)
-    if fm_errors:
-        return fm_errors
-
+def _lint_skill_default(
+    skill_file: Path,
+    skill_dir: Path,
+    meta: dict[str, Any],
+    field_lines: dict[str, int],
+    body: str,
+    body_start_line: int,
+) -> list[Diagnostic]:
+    """Best-practice lint rules (warnings for soft issues)."""
     diagnostics: list[Diagnostic] = []
 
     # E003: Missing name in frontmatter or empty name
@@ -462,7 +431,106 @@ def lint_skill(skill_dir_or_file: Path) -> list[Diagnostic]:
     return diagnostics
 
 
-def lint_directory(root: Path) -> list[Diagnostic]:
+def _lint_skill_strict(
+    skill_file: Path,
+    skill_dir: Path,
+    meta: dict[str, Any],
+    field_lines: dict[str, int],
+    body: str,
+    body_start_line: int,
+) -> list[Diagnostic]:
+    """Strict SkillManifestSchema validation (errors for schema violations)."""
+    from cinch.schema import SkillManifestSchema
+
+    _, issues = SkillManifestSchema.validate(meta)
+    diagnostics: list[Diagnostic] = []
+    for issue in issues:
+        severity: Severity = "error" if issue.rule.startswith("E") else "warning"
+        line = field_lines.get(issue.field, 1) if issue.field else 1
+        diagnostics.append(
+            Diagnostic(
+                path=skill_file,
+                line=line,
+                severity=severity,
+                rule=issue.rule,
+                message=issue.message,
+            )
+        )
+
+    # Body size remains a warning even in strict mode (Windsurf pointer fallback).
+    if len(body) > 12000:
+        diagnostics.append(
+            Diagnostic(
+                path=skill_file,
+                line=body_start_line,
+                severity="warning",
+                rule="W003",
+                message=(
+                    "Skill body exceeds 12,000 characters (will require pointer file in Windsurf)"
+                ),
+            )
+        )
+
+    if (skill_dir / "scripts").is_dir() or (skill_dir / "references").is_dir():
+        diagnostics.append(
+            Diagnostic(
+                path=skill_file,
+                line=None,
+                severity="info",
+                rule="I001",
+                message="Multi-file skill detected (has scripts/ or references/ directory)",
+            )
+        )
+
+    return diagnostics
+
+
+def lint_skill(skill_dir_or_file: Path, *, strict: bool = False) -> list[Diagnostic]:
+    """Validate and lint a single SKILL.md file or skill directory against rules."""
+    path = Path(skill_dir_or_file)
+    if path.is_dir():
+        skill_file = path / "SKILL.md"
+        skill_dir = path
+    else:
+        skill_file = path
+        skill_dir = path.parent
+
+    # E001: SKILL.md does not exist in skill directory, or file cannot be read
+    if not skill_file.is_file():
+        return [
+            Diagnostic(
+                path=skill_file,
+                line=None,
+                severity="error",
+                rule="E001",
+                message=f"SKILL.md does not exist at {skill_file}",
+            )
+        ]
+
+    try:
+        content = skill_file.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return [
+            Diagnostic(
+                path=skill_file,
+                line=None,
+                severity="error",
+                rule="E001",
+                message=f"Cannot read SKILL.md at {skill_file}: {exc}",
+            )
+        ]
+
+    # E002: Invalid YAML frontmatter syntax
+    meta, field_lines, fm_errors, body, body_start_line = _parse_frontmatter(content, skill_file)
+    if fm_errors:
+        return fm_errors
+
+    if strict:
+        return _lint_skill_strict(skill_file, skill_dir, meta, field_lines, body, body_start_line)
+    return _lint_skill_default(skill_file, skill_dir, meta, field_lines, body, body_start_line)
+
+
+def lint_directory(root: Path, *, strict: bool = False) -> list[Diagnostic]:
     """Recursively or via glob find all SKILL.md files under root and lint them."""
     root = Path(root)
     if not root.exists():
@@ -476,7 +544,7 @@ def lint_directory(root: Path) -> list[Diagnostic]:
             )
         ]
     if root.is_file():
-        return lint_skill(root)
+        return lint_skill(root, strict=strict)
 
     skill_files: list[Path] = []
     for skill_file in sorted(root.rglob("SKILL.md")):
@@ -501,5 +569,5 @@ def lint_directory(root: Path) -> list[Diagnostic]:
 
     diagnostics: list[Diagnostic] = []
     for sf in skill_files:
-        diagnostics.extend(lint_skill(sf))
+        diagnostics.extend(lint_skill(sf, strict=strict))
     return diagnostics

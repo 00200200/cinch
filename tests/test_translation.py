@@ -226,6 +226,59 @@ class TestGrokAdapter:
         assert rf.support_dest == ".grok/skills/pentest"
 
 
+class TestContinueAdapter:
+    def test_skill_compiles_to_invokable_prompt_file(self) -> None:
+        doc = Doc(
+            kind="skill",
+            name="humanizer",
+            description="Humanize AI prose.",
+            body="Follow Hemingway rules.\n",
+            paths=("*.md", "docs/**"),
+        )
+        rendered = get_adapter("continue").render(doc)
+        prompt = next(r for r in rendered if r.relpath.endswith(".prompt"))
+        merge = next(r for r in rendered if r.relpath == ".continue/config.json")
+        assert prompt.relpath == ".continue/prompts/humanizer.prompt"
+        assert 'name: "humanizer"' in prompt.text
+        assert 'description: "Humanize AI prose."' in prompt.text
+        assert "invokable: true" in prompt.text
+        assert "{{{ input }}}" in prompt.text
+        assert "Follow Hemingway rules." in prompt.text
+        assert "<!-- cinch paths: *.md, docs/** -->" in prompt.text
+        assert merge.mode == "merge"
+        payload = json.loads(merge.text)
+        assert payload["customCommands"][0]["name"] == "humanizer"
+        assert "{{{ input }}}" in payload["customCommands"][0]["prompt"]
+
+    def test_preserves_existing_handlebars_and_upgrades_double_braces(self) -> None:
+        doc = Doc(
+            kind="skill",
+            name="reviewer",
+            description="Review code.",
+            body="Focus on {{{ current_file }}}.\nUse {{ tone }} sparingly.\n",
+            extra_meta={"variables": ["input", "current_file"]},
+        )
+        rendered = get_adapter("continue").render(doc)
+        prompt = next(r for r in rendered if r.relpath.endswith(".prompt"))
+        assert prompt.text.count("{{{ current_file }}}") == 1
+        assert "{{{ tone }}}" in prompt.text
+        assert "{{ tone }}" not in prompt.text.replace("{{{ tone }}}", "")
+        assert "{{{ input }}}" in prompt.text
+
+    def test_command_and_agent_share_prompt_destination(self) -> None:
+        for kind in ("command", "agent"):
+            doc = Doc(
+                kind=kind,
+                name="ship",
+                description="Release helper",
+                body="Tag the release.\n",
+            )
+            rendered = get_adapter("continue").render(doc)
+            prompt = next(r for r in rendered if r.relpath.endswith(".prompt"))
+            assert prompt.relpath == ".continue/prompts/ship.prompt"
+            assert "invokable: true" in prompt.text
+
+
 class TestMultiTargetWiring:
     def test_wire_claude_skill_to_cursor_copilot_gemini(self, tmp_path: Path) -> None:
         home = tmp_path / "home"
@@ -381,6 +434,35 @@ class TestMultiTargetWiring:
         assert matches == [project / ".agents/skills/humanizer/SKILL.md"]
         assert "paths:" in matches[0].read_text(encoding="utf-8")
 
+    def test_wire_claude_skill_to_continue(self, tmp_path: Path) -> None:
+        home = tmp_path / "home"
+        _write_file(
+            home / ".claude" / "skills" / "humanizer" / "SKILL.md",
+            "---\nname: humanizer\ndescription: Polish writing.\n---\nMake it concise.\n",
+        )
+        project = tmp_path / "app"
+        project.mkdir()
+        # No config.json yet — prompt is written; config merge is a no-op.
+        plan = resolve_plan(
+            from_harness="claude",
+            harness="continue",
+            project=project,
+            home=home,
+            skills=("humanizer",),
+        )
+        result = apply_plan(plan)
+        by_path = {r["path"]: r for r in result["results"]}
+        assert by_path[".continue/prompts/humanizer.prompt"]["outcome"] == "written"
+        assert by_path[".continue/config.json"]["outcome"] == "unchanged"
+        assert not (project / ".continue" / "config.json").exists()
+
+        prompt = project / ".continue/prompts/humanizer.prompt"
+        assert prompt.is_file()
+        text = prompt.read_text(encoding="utf-8")
+        assert "invokable: true" in text
+        assert "{{{ input }}}" in text
+        assert "Make it concise." in text
+
     def test_wire_claude_skill_to_grok(self, tmp_path: Path) -> None:
         home = tmp_path / "home"
         _write_file(
@@ -416,6 +498,54 @@ class TestMultiTargetWiring:
         assert manifest["targets"] == ["grok"]
         assert manifest["results"][0]["target"] == "grok"
         assert manifest["results"][0]["outcome"] == "written"
+
+    def test_continue_merges_custom_commands_when_config_present(self, tmp_path: Path) -> None:
+        home = tmp_path / "home"
+        _write_file(
+            home / ".claude" / "skills" / "humanizer" / "SKILL.md",
+            "---\nname: humanizer\ndescription: Polish writing.\n---\nMake it concise.\n",
+        )
+        project = tmp_path / "app"
+        config = project / ".continue" / "config.json"
+        _write_file(
+            config,
+            json.dumps(
+                {
+                    "models": [{"title": "local", "provider": "ollama", "model": "llama3"}],
+                    "customCommands": [
+                        {
+                            "name": "test",
+                            "description": "Write tests",
+                            "prompt": "Write unit tests.",
+                        }
+                    ],
+                },
+                indent=2,
+            )
+            + "\n",
+        )
+
+        plan = resolve_plan(
+            from_harness="claude",
+            harness="continue",
+            project=project,
+            home=home,
+            skills=("humanizer",),
+        )
+        res1 = apply_plan(plan)
+        merge1 = next(r for r in res1["results"] if r["path"] == ".continue/config.json")
+        assert merge1["outcome"] == "written"
+
+        data = json.loads(config.read_text(encoding="utf-8"))
+        assert data["models"][0]["title"] == "local"
+        names = [c["name"] for c in data["customCommands"]]
+        assert names == ["test", "humanizer"]
+        humanizer = next(c for c in data["customCommands"] if c["name"] == "humanizer")
+        assert "{{{ input }}}" in humanizer["prompt"]
+
+        res2 = apply_plan(plan)
+        merge2 = next(r for r in res2["results"] if r["path"] == ".continue/config.json")
+        assert merge2["outcome"] == "unchanged"
 
 
 class TestPointerAndSupportFiles:
