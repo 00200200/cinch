@@ -194,6 +194,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to a skill directory, file, or root containing skills (default: .)",
     )
     check_cmd.add_argument(
+        "--strict",
+        action="store_true",
+        help=(
+            "Enforce SkillManifestSchema: required name/description, known keys only, "
+            "valid path globs (errors exit non-zero; misspelled keys get hints)"
+        ),
+    )
+    check_cmd.add_argument(
         "--audit-secrets",
         action="store_true",
         help=(
@@ -840,11 +848,12 @@ def _diff(args: argparse.Namespace) -> int:
 def _check(args: argparse.Namespace) -> int:
     from cinch.check import lint_directory, lint_skill
 
+    strict = bool(getattr(args, "strict", False))
     target = Path(args.path).expanduser()
     if target.is_file() or target.suffix == ".md":
-        diagnostics = lint_skill(target)
+        diagnostics = lint_skill(target, strict=strict)
     else:
-        diagnostics = lint_directory(target)
+        diagnostics = lint_directory(target, strict=strict)
 
     if getattr(args, "audit_secrets", False):
         from cinch.secrets import audit_directory, audit_skill
