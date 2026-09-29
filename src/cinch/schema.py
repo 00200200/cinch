@@ -25,7 +25,9 @@ DIALECT_KEYS = frozenset(
         "disable-model-invocation",
     }
 )
-ALLOWED_KEYS = REQUIRED_KEYS | OPTIONAL_META_KEYS | DIALECT_KEYS
+# Cinch-native keys consumed at wire/compile time (stripped before dialect output).
+CINCH_KEYS = frozenset({"parameters"})
+ALLOWED_KEYS = REQUIRED_KEYS | OPTIONAL_META_KEYS | DIALECT_KEYS | CINCH_KEYS
 
 # Soft upper bound used by Cursor/Windsurf-style rule UIs (chars).
 MAX_DESCRIPTION_LENGTH = 1024
