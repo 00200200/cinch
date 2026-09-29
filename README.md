@@ -226,8 +226,7 @@ Every mapping is backed by vendor documentation and verified through automated c
 | **Aider** | `.aider/<n>.md` | None (Markdown body) | Automatically merges `read:` in `.aider.conf.yml` |
 | **Zed** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `disable-model-invocation` | Shared with Cursor/Codex; commands become non-invocable skills |
 | **Continue** | `.continue/prompts/<n>.prompt` | `name`, `description`, `invokable` | Slash commands; merges `customCommands` into existing `.continue/config.json` |
-
-*Planned Harnesses:* Grok CLI.
+| **Grok** | `.grok/skills/<n>/SKILL.md` | `name`, `description`, `paths`, `when-to-use`, `allowed-tools` | xAI Grok Build/CLI; unsupported source frontmatter stripped |
 
 ### Continue
 
@@ -243,6 +242,7 @@ comment. When a project already has `.continue/config.json`, Cinch also merges a
 ```bash
 uvx cinch-init --from-harness claude --harness continue --skills humanizer --yes
 ```
+
 
 ### Zed
 
@@ -261,6 +261,21 @@ may also contain `scripts/`, `references/`, and `assets/`; Cinch copies those al
 Because Zed shares `.agents/skills/` with Cursor and Codex, a `--harness cursor,zed` run
 writes the file once (as Cursor's rendering, which includes `paths`) and reports Zed as
 `shared`. Wire `--harness zed` on its own for Zed's minimal `name`/`description` frontmatter.
+
+### Grok
+
+Grok Build / Grok CLI reads skills from [`.grok/skills/`](https://docs.x.ai/build/features/skills-plugins-marketplaces):
+
+- **Global:** `~/.grok/skills/<name>/SKILL.md`
+- **Project-local:** `<worktree>/.grok/skills/<name>/SKILL.md` (walked up to the repo root)
+
+Each skill is a folder with `SKILL.md` YAML frontmatter. Cinch emits `name`, `description`,
+optional `paths`, and Grok-native extras (`when-to-use`, `allowed-tools`, `argument-hint`,
+`user-invocable`, `disable-model-invocation`) when present on the source. Unsupported Claude
+keys such as `hooks` are stripped. Commands become slash-only skills via
+`disable-model-invocation: true`. Support scripts and references copy into the skill folder.
+
+Wire with `cinch init --harness grok` (or `cinch init --from-harness claude --harness grok`).
 
 ---
 

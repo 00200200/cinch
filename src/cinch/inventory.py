@@ -65,6 +65,8 @@ def collect_inventory(
         _named_files_in(add, "command", root / "commands")
         _skills_in(add, "skill", root / "grok-bot" / "skills")
         _named_files_in(add, "agent", root / "grok-bot" / "agents")
+        _skills_in(add, "skill", root / ".grok" / "skills")
+        _named_files_in(add, "agent", root / ".grok" / "agents")
 
     if include_starter:
         _skills_in(add, "skill", STARTER_DIR)

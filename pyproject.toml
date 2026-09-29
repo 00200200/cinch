@@ -5,12 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "cinch-init"
 version = "0.1.0"
-description = "Universal agents for every harness. Author once, wire everywhere — Claude Code, Cursor, Codex, Copilot, Gemini CLI, Windsurf, Cline, OpenCode, Aider, Zed, Continue."
+description = "Universal agents for every harness. Author once, wire everywhere — Claude Code, Cursor, Codex, Copilot, Gemini CLI, Windsurf, Cline, OpenCode, Aider, Zed, Continue, Grok."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "00200200" }]
-keywords = ["agents", "skills", "claude-code", "cursor", "codex", "copilot", "gemini", "windsurf", "cline", "opencode", "aider", "zed", "continue", "harness"]
+keywords = ["agents", "skills", "claude-code", "cursor", "codex", "copilot", "gemini", "windsurf", "cline", "opencode", "aider", "zed", "continue", "grok", "harness"]
 classifiers = [
   "Environment :: Console",
   "License :: OSI Approved :: MIT License",

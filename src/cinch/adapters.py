@@ -172,6 +172,74 @@ class ZedAdapter:
         )
 
 
+class GrokAdapter:
+    """Adapter for xAI Grok Build / Grok CLI skills.
+
+    Grok discovers skills from `./.grok/skills/` (walked to repo root) and
+    `~/.grok/skills/`. Each skill is a folder with `SKILL.md` YAML frontmatter.
+    Cinch emits the documented fields (`name`, `description`, optional `paths`,
+    `when-to-use`, `allowed-tools`, `argument-hint`, `user-invocable`,
+    `disable-model-invocation`) and strips unrelated source frontmatter.
+    """
+
+    target = "grok"
+
+    # Frontmatter keys Grok documents; all other source keys are dropped.
+    _PASSTHROUGH = (
+        "when-to-use",
+        "when_to_use",
+        "allowed-tools",
+        "argument-hint",
+        "user-invocable",
+        "disable-model-invocation",
+    )
+
+    def render(self, doc: Doc) -> tuple[RenderedFile, ...]:
+        name = doc.name
+        relpath = f".grok/skills/{name}/SKILL.md"
+
+        meta: dict[str, str | list[str] | bool | None] = {
+            "name": name,
+            "description": doc.description,
+        }
+        if doc.paths:
+            meta["paths"] = list(doc.paths)
+
+        for key in self._PASSTHROUGH:
+            if key not in doc.extra_meta:
+                continue
+            val = doc.extra_meta[key]
+            dest = "when-to-use" if key == "when_to_use" else key
+            if dest in meta:
+                continue
+            if dest in ("user-invocable", "disable-model-invocation") and isinstance(val, str):
+                lowered = val.strip().lower()
+                if lowered in ("true", "false"):
+                    meta[dest] = lowered == "true"
+                    continue
+            if isinstance(val, (str, bool, list)):
+                meta[dest] = val
+            elif val is not None:
+                meta[dest] = str(val)
+
+        if doc.kind == "command" and "disable-model-invocation" not in meta:
+            meta["disable-model-invocation"] = True
+
+        fm = _format_frontmatter(meta)
+        text = f"{fm}\n\n{doc.body}\n" if doc.body else f"{fm}\n"
+
+        support_source = doc.support if doc.support else None
+        support_dest = f".grok/skills/{name}" if doc.support else None
+        return (
+            RenderedFile(
+                relpath=relpath,
+                text=text,
+                support_source=support_source,
+                support_dest=support_dest,
+            ),
+        )
+
+
 class CopilotAdapter:
     target = "copilot"
 
@@ -517,6 +585,7 @@ ADAPTERS: dict[str, Adapter] = {
     "aider": AiderAdapter(),
     "zed": ZedAdapter(),
     "continue": ContinueAdapter(),
+    "grok": GrokAdapter(),
 }
 
 

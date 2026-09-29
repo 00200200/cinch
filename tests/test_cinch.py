@@ -114,6 +114,7 @@ class TestHarnessPresence:
             "aider",
             "zed",
             "continue",
+            "grok",
         ]
         titles = {item.id: item.title for item in detect_harnesses(home=tmp_path, binaries=set())}
         assert "OpenAI" not in titles["codex"]
@@ -121,6 +122,7 @@ class TestHarnessPresence:
         assert titles["claude"] == "Claude Code"
         assert titles["zed"] == "Zed"
         assert titles["continue"] == "Continue"
+        assert titles["grok"] == "Grok"
 
 
 class TestInventory:
@@ -428,6 +430,40 @@ class TestCliNoninteractive:
         ]
         assert written_prompts
 
+    def test_init_grok_noninteractive(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        home = tmp_path / "home"
+        skill(home / ".claude" / "skills", "humanizer")
+        project = tmp_path / "app"
+        project.mkdir()
+        code = main(
+            [
+                "init",
+                str(project),
+                "--from-harness",
+                "claude",
+                "--harness",
+                "grok",
+                "--skills",
+                "humanizer",
+                "--yes",
+                "--home",
+                str(home),
+            ]
+        )
+        assert code == 0
+        out = capsys.readouterr().out
+        assert "Grok" in out
+        skill_file = project / ".grok" / "skills" / "humanizer" / "SKILL.md"
+        assert skill_file.is_file()
+        assert "Use this skill." in skill_file.read_text(encoding="utf-8")
+        manifest = json.loads((project / ".cinch.json").read_text(encoding="utf-8"))
+        assert manifest["source_harness"] == "claude"
+        assert manifest["targets"] == ["grok"]
+        assert manifest["results"][0]["target"] == "grok"
+        assert manifest["results"][0]["outcome"] == "written"
+
     def test_preview_continue(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         home = tmp_path / "home"
         skill(home / ".claude" / "skills", "humanizer")
@@ -447,6 +483,26 @@ class TestCliNoninteractive:
         out = capsys.readouterr().out
         assert "Cinch Preview: humanizer -> target dialect: continue" in out
         assert "[file: .continue/prompts/humanizer.prompt]" in out
+
+    def test_preview_grok(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        home = tmp_path / "home"
+        skill(home / ".claude" / "skills", "humanizer")
+        code = main(
+            [
+                "preview",
+                "humanizer",
+                "--from-harness",
+                "claude",
+                "--target",
+                "grok",
+                "--home",
+                str(home),
+            ]
+        )
+        assert code == 0
+        out = capsys.readouterr().out
+        assert "Cinch Preview: humanizer -> target dialect: grok" in out
+        assert "[file: .grok/skills/humanizer/SKILL.md]" in out
 
     def test_inventory_lists_that_harness(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]

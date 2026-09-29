@@ -16,9 +16,10 @@ HARNESS_ORDER = (
     "aider",
     "zed",
     "continue",
+    "grok",
 )
 
-PLANNED_HARNESSES = ("grok",)
+PLANNED_HARNESSES = ()
 
 PURPOSES = ("python", "ml", "data", "web", "docs", "security", "agents")
 
@@ -274,22 +275,21 @@ HARNESSES: dict[str, HarnessSpec] = {
             "command": ".continue/prompts",
         },
     ),
-    # Planned / Experimental harnesses (spec unverified)
     "grok": _spec(
         "grok",
         "Grok",
         binaries=("grok",),
         home_markers=(".grok",),
-        project_markers=("grok-bot", ".grok"),
+        project_markers=(".grok",),
         skill_sources=("{home}/.grok/skills",),
         agent_sources=("{home}/.grok/agents",),
         hook_sources=("{home}/.grok/hooks",),
         command_sources=("{home}/.grok/prompts",),
         project_dirs={
-            "skill": "grok-bot/skills",
-            "agent": "grok-bot/agents",
-            "hook": "grok-bot/hooks",
-            "command": "grok-bot/prompts",
+            "skill": ".grok/skills",
+            "agent": ".grok/skills",
+            "command": ".grok/skills",
+            "hook": ".grok/hooks",
         },
     ),
 }
