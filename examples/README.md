@@ -62,6 +62,9 @@ Then in your agent:
 # Copilot instructions + Gemini command from the same skill
 cinch init --from-dir examples/skills --harness copilot,gemini --skills security-auditor --yes
 
+# Grok Build / Grok CLI native skills under .grok/skills/
+cinch init --from-dir examples/skills --harness grok --skills humanizer --yes
+
 # Multi-file docker-deploy into Copilot
 # (body inlined; scripts land under .cinch/skills/docker-deploy/)
 cinch init --from-dir examples/skills --harness copilot --skills docker-deploy --yes

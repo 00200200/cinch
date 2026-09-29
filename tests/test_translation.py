@@ -149,6 +149,83 @@ class TestZedAdapter:
         assert "disable-model-invocation" not in rf.text
 
 
+class TestGrokAdapter:
+    def test_skill_emits_name_description_paths_and_strips_unknown(self) -> None:
+        doc = Doc(
+            kind="skill",
+            name="humanizer",
+            description="Humanize AI prose.",
+            body="Follow Hemingway rules.\n",
+            paths=("*.md", "docs/**"),
+            extra_meta={
+                "name": "humanizer",
+                "description": "Humanize AI prose.",
+                "paths": ["*.md", "docs/**"],
+                "hooks": {"PreToolUse": []},
+                "model": "grok-4",
+                "allowed-tools": ["read_file", "run_terminal_cmd"],
+                "when-to-use": "rewriting AI drafts",
+            },
+        )
+        rendered = get_adapter("grok").render(doc)
+        assert len(rendered) == 1
+        rf = rendered[0]
+        assert rf.relpath == ".grok/skills/humanizer/SKILL.md"
+        assert 'name: "humanizer"' in rf.text
+        assert 'description: "Humanize AI prose."' in rf.text
+        assert 'paths:\n  - "*.md"\n  - "docs/**"' in rf.text
+        assert 'allowed-tools:\n  - "read_file"\n  - "run_terminal_cmd"' in rf.text
+        assert 'when-to-use: "rewriting AI drafts"' in rf.text
+        assert "Follow Hemingway rules." in rf.text
+        assert "hooks:" not in rf.text
+        assert "model:" not in rf.text
+
+    def test_command_is_slash_only(self) -> None:
+        doc = Doc(
+            kind="command",
+            name="ship",
+            description="Release helper",
+            body="Run checks and tag git version.\n",
+        )
+        rendered = get_adapter("grok").render(doc)
+        assert len(rendered) == 1
+        rf = rendered[0]
+        assert rf.relpath == ".grok/skills/ship/SKILL.md"
+        assert "disable-model-invocation: true" in rf.text
+
+    def test_agent_lands_at_skill_path(self) -> None:
+        doc = Doc(
+            kind="agent",
+            name="reviewer",
+            description="Review code.",
+            body="Check diffs.\n",
+        )
+        rendered = get_adapter("grok").render(doc)
+        assert len(rendered) == 1
+        rf = rendered[0]
+        assert rf.relpath == ".grok/skills/reviewer/SKILL.md"
+        assert "disable-model-invocation" not in rf.text
+
+    def test_support_files_copy_alongside_skill(self, tmp_path: Path) -> None:
+        support = tmp_path / "pentest"
+        support.mkdir()
+        (support / "scripts").mkdir()
+        (support / "scripts" / "probe.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+        doc = Doc(
+            kind="skill",
+            name="pentest",
+            description="Pentest app",
+            body="Run audit.\n",
+            support=support,
+        )
+        rendered = get_adapter("grok").render(doc)
+        assert len(rendered) == 1
+        rf = rendered[0]
+        assert rf.relpath == ".grok/skills/pentest/SKILL.md"
+        assert rf.support_source == support
+        assert rf.support_dest == ".grok/skills/pentest"
+
+
 class TestMultiTargetWiring:
     def test_wire_claude_skill_to_cursor_copilot_gemini(self, tmp_path: Path) -> None:
         home = tmp_path / "home"
@@ -303,6 +380,42 @@ class TestMultiTargetWiring:
         matches = list(project.glob(".agents/skills/*/SKILL.md"))
         assert matches == [project / ".agents/skills/humanizer/SKILL.md"]
         assert "paths:" in matches[0].read_text(encoding="utf-8")
+
+    def test_wire_claude_skill_to_grok(self, tmp_path: Path) -> None:
+        home = tmp_path / "home"
+        _write_file(
+            home / ".claude" / "skills" / "humanizer" / "SKILL.md",
+            "---\nname: humanizer\ndescription: Polish writing.\n---\nMake it concise.\n",
+        )
+        project = tmp_path / "app"
+        project.mkdir()
+
+        plan = resolve_plan(
+            from_harness="claude",
+            harness="grok",
+            project=project,
+            home=home,
+            skills=("humanizer",),
+        )
+        assert plan.targets == ("grok",)
+        relpath = ".grok/skills/humanizer/SKILL.md"
+        assert plan.files[0].relpath == relpath
+
+        result = apply_plan(plan)
+        by_target = {r["target"]: r for r in result["results"]}
+        assert by_target["grok"]["outcome"] == "written"
+        assert by_target["grok"]["path"] == relpath
+
+        grok_file = project / relpath
+        assert grok_file.is_file()
+        text = grok_file.read_text(encoding="utf-8")
+        assert "Make it concise." in text
+        assert 'name: "humanizer"' in text
+
+        manifest = json.loads((project / ".cinch.json").read_text(encoding="utf-8"))
+        assert manifest["targets"] == ["grok"]
+        assert manifest["results"][0]["target"] == "grok"
+        assert manifest["results"][0]["outcome"] == "written"
 
 
 class TestPointerAndSupportFiles:

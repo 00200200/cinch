@@ -18,6 +18,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and [Semantic Ver
 - Respect `NO_COLOR` and `FORCE_COLOR=0`/`false` for plain CLI output. Rich treats any non-empty `FORCE_COLOR` (including `0`) as a TTY, which broke scripted/demo stdout and pytest captures under `FORCE_COLOR=0`.
 
 ### Added
+- **Grok adapter** — compile skills, agents, and commands into xAI Grok Build's `.grok/skills/<name>/SKILL.md` layout (passthrough of `paths`/`when-to-use`/`allowed-tools`; unsupported source frontmatter stripped; commands emit `disable-model-invocation: true`)
 - **Zed adapter** — compile skills, agents, and commands into Zed's native Agent Skills layout at `.agents/skills/<name>/SKILL.md` (commands emit `disable-model-invocation: true`); shares the `.agents/skills` path with Cursor and Codex
 - `cinch check [path]` — comprehensive skill linter & validator verifying YAML frontmatter, naming conventions, path globs, and Windsurf size constraints with Rich diagnostics table
 - `cinch diff [project]` — workspace drift detector comparing on-disk files against source translations with syntax-highlighted unified diffs
