@@ -193,6 +193,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=".",
         help="Path to a skill directory, file, or root containing skills (default: .)",
     )
+    check_cmd.add_argument(
+        "--audit-secrets",
+        action="store_true",
+        help=(
+            "Also scan skills for leaked API keys, tokens, high-entropy secrets, "
+            "and hardcoded user paths (stdlib detector; exits 1 on findings)"
+        ),
+    )
     return parser
 
 
@@ -837,6 +845,14 @@ def _check(args: argparse.Namespace) -> int:
         diagnostics = lint_skill(target)
     else:
         diagnostics = lint_directory(target)
+
+    if getattr(args, "audit_secrets", False):
+        from cinch.secrets import audit_directory, audit_skill
+
+        if target.is_file() or target.suffix == ".md":
+            diagnostics = diagnostics + audit_skill(target)
+        else:
+            diagnostics = diagnostics + audit_directory(target)
 
     if console.is_terminal:
         if diagnostics:
