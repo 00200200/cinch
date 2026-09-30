@@ -272,6 +272,64 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Preview imported skills without writing files",
     )
+
+    from cinch.watch import DEFAULT_DEBOUNCE_MS
+
+    watch_cmd = commands.add_parser(
+        "watch",
+        help="Watch skill markdown and re-wire target harnesses on change",
+        parents=[shared],
+        description=(
+            "Poll source skill directories for create/modify/delete, debounce, "
+            "then re-run the wire/compile path for --harness target(s). "
+            "Uses stdlib mtime polling (no watchfiles/watchdog)."
+        ),
+    )
+    watch_cmd.add_argument(
+        "project", nargs="?", default=".", help="Project directory (default: cwd)"
+    )
+    watch_cmd.add_argument(
+        "--from-harness",
+        choices=HARNESS_ORDER,
+        help="Source harness to read inventory from (auto-detected if omitted)",
+    )
+    watch_cmd.add_argument(
+        "--harness",
+        help="Target harness(es) to wire (comma-separated, e.g. cursor,copilot)",
+    )
+    watch_cmd.add_argument("--purpose", choices=PURPOSES, help="Filter inventory by purpose")
+    watch_cmd.add_argument("--skills", help="Comma-separated skill names to wire")
+    watch_cmd.add_argument("--agents", help="Comma-separated agent names to wire")
+    watch_cmd.add_argument("--hooks", help="Comma-separated hook names")
+    watch_cmd.add_argument("--commands", help="Comma-separated command/prompt names")
+    watch_cmd.add_argument(
+        "--from",
+        "--from-dir",
+        dest="extra_roots",
+        action="append",
+        default=[],
+        metavar="DIR",
+        help="Skill root to watch and read (repeatable; same as init --from-dir)",
+    )
+    watch_cmd.add_argument(
+        "--debounce",
+        type=int,
+        default=DEFAULT_DEBOUNCE_MS,
+        metavar="MS",
+        help=f"Quiet period before rebuild (default: {DEFAULT_DEBOUNCE_MS})",
+    )
+    watch_cmd.add_argument(
+        "--once",
+        action="store_true",
+        help="Scan and rebuild once, then exit (for scripts and tests)",
+    )
+    watch_cmd.add_argument(
+        "--param",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Override a skill parameter (repeatable); wins over CINCH_PARAM_* env vars",
+    )
     return parser
 
 
@@ -299,6 +357,8 @@ def main(argv: list[str] | None = None) -> int:
             return _check(args)
         if args.command == "import":
             return _import(args)
+        if args.command == "watch":
+            return _watch(args)
         return _init(args)
     except CinchError as exc:
         print(f"cinch: {exc}", file=sys.stderr)
@@ -999,6 +1059,83 @@ def _check(args: argparse.Namespace) -> int:
 
     has_errors = any(d.severity == "error" for d in diagnostics)
     return 1 if has_errors else 0
+
+
+def _watch(args: argparse.Namespace) -> int:
+    from cinch.watch import WatchChange, WatchConfig, run_watch
+
+    project = Path(args.project).expanduser().resolve()
+    project.mkdir(parents=True, exist_ok=True)
+    home = _home(args)
+    extra = tuple(Path(root).expanduser().resolve() for root in args.extra_roots)
+    harness = args.harness
+    from_harness = args.from_harness
+
+    if harness is None and from_harness is None and not extra:
+        if not sys.stdin.isatty():
+            raise CinchError("Pass --harness (or --from-dir) for non-interactive watch")
+        harness = _prompt_harness(home=home, project=project)
+
+    if args.debounce < 0:
+        raise CinchError("--debounce must be >= 0")
+
+    config = WatchConfig(
+        project=project,
+        home=home,
+        harness=harness,
+        from_harness=from_harness,
+        extra_roots=extra,
+        skills=parse_csv(args.skills),
+        agents=parse_csv(args.agents),
+        hooks=parse_csv(args.hooks),
+        commands=parse_csv(args.commands),
+        purpose=args.purpose,
+        param_overrides=parse_param_flags(getattr(args, "param", None)),
+        debounce_ms=args.debounce,
+    )
+
+    def on_start(roots: tuple[Path, ...]) -> None:
+        roots_display = ", ".join(str(root) for root in roots)
+        targets = harness or from_harness or "auto"
+        if not console.is_terminal:
+            print(f"cinch watch  watching {roots_display}")
+            print(f"  harness   {targets}")
+            print(f"  debounce  {args.debounce}ms")
+            if args.once:
+                print("  mode      once")
+            return
+        console.print(
+            f"[bold]cinch watch[/bold]  watching [cyan]{roots_display}[/cyan] → "
+            f"[bold]{targets}[/bold]  ([dim]debounce {args.debounce}ms[/dim])"
+        )
+
+    def on_rebuild(changes: list[WatchChange], result: dict, elapsed_ms: float) -> None:
+        changed = ", ".join(f"{c.kind}:{Path(c.path).name}" for c in changes) or "startup"
+        attached = ", ".join(result.get("copied") or []) or "(none)"
+        if not console.is_terminal:
+            print(f"  rebuild   {changed}  ({elapsed_ms:.0f}ms)")
+            print(f"  attached  {attached}")
+            for skip in result.get("skipped") or []:
+                print(f"  skipped   {skip}")
+            return
+        console.print(f"  [green]rebuild[/green]  {changed}  [dim]({elapsed_ms:.0f}ms)[/dim]")
+        console.print(f"  [dim]attached[/dim]  {attached}")
+        for skip in result.get("skipped") or []:
+            console.print(f"  [yellow]skipped[/yellow]  {skip}")
+
+    def on_error(exc: BaseException) -> None:
+        if not console.is_terminal:
+            print(f"  error     {exc}", file=sys.stderr)
+            return
+        console.print(f"  [bold red]error[/bold red]  {exc}")
+
+    return run_watch(
+        config,
+        once=bool(args.once),
+        on_start=on_start,
+        on_rebuild=on_rebuild,
+        on_error=on_error,
+    )
 
 
 def _import(args: argparse.Namespace) -> int:

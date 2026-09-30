@@ -18,6 +18,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and [Semantic Ver
 - Respect `NO_COLOR` and `FORCE_COLOR=0`/`false` for plain CLI output. Rich treats any non-empty `FORCE_COLOR` (including `0`) as a TTY, which broke scripted/demo stdout and pytest captures under `FORCE_COLOR=0`.
 
 ### Added
+- **`cinch watch`** — stdlib mtime-polling daemon that re-wires skills on create/modify/delete (`--debounce` default 150ms, `--once` for a single rebuild, `--from-dir` / project skills roots); overwrites target harness files on each rebuild; exits cleanly on Ctrl+C
 - **`cinch import`** — reverse-sync legacy `.cursorrules` / `.cursor/rules`, Claude `SKILL.md` packages, `.github/copilot-instructions.md` + `.github/instructions/*.instructions.md`, and `.clinerules` into canonical Cinch skills under `.cinch/imported` (auto-detect dialect; `--from-harness` when ambiguous; `--dry-run` / `--yes`)
 - **Parameterized skills** — declare typed `parameters` in frontmatter (`string`/`int`/`boolean`/`choice`); override via `--param key=value` or `CINCH_PARAM_*`; safe `{{ name }}` / `$name` substitution at wire/preview time (stdlib only, no Jinja2)
 - **Continue.dev adapter** — compile skills, agents, and commands into `.continue/prompts/<name>.prompt` with `invokable: true` slash commands; preserve Handlebars (`{{{ input }}}`); merge `customCommands` into an existing `.continue/config.json`

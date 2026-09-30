@@ -12,7 +12,7 @@ from cinch.plan import Plan, PlannedFile
 Outcome = Literal["written", "unchanged", "exists", "shared", "skipped"]
 
 
-def apply_plan(plan: Plan) -> dict:
+def apply_plan(plan: Plan, *, overwrite: bool = False) -> dict:
     results: list[dict] = []
     copied_list: list[str] = []
     seen: set[str] = set()
@@ -23,7 +23,7 @@ def apply_plan(plan: Plan) -> dict:
 
     if not plan.dry_run:
         for file in plan.files:
-            outcome = _apply_file(file, plan.project, written_this_pass)
+            outcome = _apply_file(file, plan.project, written_this_pass, overwrite=overwrite)
             entry: dict = {
                 "kind": file.kind,
                 "name": file.name,
@@ -107,6 +107,8 @@ def _apply_file(
     file: PlannedFile,
     project: Path,
     written_this_pass: dict[str, str],
+    *,
+    overwrite: bool = False,
 ) -> Outcome:
     dest = project / file.relpath
 
@@ -114,6 +116,8 @@ def _apply_file(
         support_dir = project / file.support_dest
         if not support_dir.exists():
             shutil.copytree(file.support_source, support_dir)
+        elif overwrite and file.support_source.is_dir():
+            shutil.copytree(file.support_source, support_dir, dirs_exist_ok=True)
 
     if file.mode == "merge":
         outcome = _merge_file(dest, file.content)
@@ -124,7 +128,9 @@ def _apply_file(
     if dest.exists():
         if file.relpath in written_this_pass:
             return "shared"
-        return "exists"
+        if not overwrite:
+            return "exists"
+        return _overwrite_file(file, dest, written_this_pass)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
 
@@ -141,6 +147,46 @@ def _apply_file(
     dest.write_text("", encoding="utf-8")
     written_this_pass[file.relpath] = file.target
     return "written"
+
+
+def _overwrite_file(
+    file: PlannedFile,
+    dest: Path,
+    written_this_pass: dict[str, str],
+) -> Outcome:
+    """Replace an existing create-mode target; report unchanged when identical."""
+    if file.content:
+        try:
+            existing = dest.read_text(encoding="utf-8") if dest.is_file() else None
+        except OSError:
+            existing = None
+        if existing == file.content:
+            written_this_pass[file.relpath] = file.target
+            return "unchanged"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(file.content, encoding="utf-8")
+        written_this_pass[file.relpath] = file.target
+        return "written"
+
+    if file.source and file.source.is_file() and dest.is_file():
+        try:
+            if dest.read_bytes() == file.source.read_bytes():
+                written_this_pass[file.relpath] = file.target
+                return "unchanged"
+        except OSError:
+            pass
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(file.source, dest)
+        written_this_pass[file.relpath] = file.target
+        return "written"
+
+    if file.source and file.source.is_dir():
+        shutil.copytree(file.source, dest, dirs_exist_ok=True)
+        written_this_pass[file.relpath] = file.target
+        return "written"
+
+    written_this_pass[file.relpath] = file.target
+    return "unchanged"
 
 
 def _merge_file(dest: Path, addition: str) -> Outcome:
