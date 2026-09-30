@@ -31,7 +31,8 @@ def _yaml_quote(val: str) -> str:
     return f'"{escaped}"'
 
 
-def _format_frontmatter(fields: dict[str, str | list[str] | bool | None]) -> str:
+def format_frontmatter(fields: dict[str, str | list[str] | bool | None]) -> str:
+    """Serialize a flat frontmatter mapping to a ``---`` delimited YAML block."""
     lines = ["---"]
     for key, val in fields.items():
         if val is None:
@@ -49,6 +50,29 @@ def _format_frontmatter(fields: dict[str, str | list[str] | bool | None]) -> str
             lines.append(f"{key}: {_yaml_quote(str(val))}")
     lines.append("---")
     return "\n".join(lines)
+
+
+# Backwards-compatible alias for in-module call sites.
+_format_frontmatter = format_frontmatter
+
+
+def render_cinch_skill(doc: Doc) -> str:
+    """Render a Doc as canonical Cinch skill markdown (``SKILL.md`` contents)."""
+    meta: dict[str, str | list[str] | bool | None] = {
+        "name": doc.name,
+        "description": doc.description,
+    }
+    if doc.paths:
+        meta["paths"] = list(doc.paths)
+    for key, val in doc.extra_meta.items():
+        if key in meta or key in ("name", "description", "paths", "globs", "applyTo"):
+            continue
+        if isinstance(val, (str, bool, list)):
+            meta[key] = val
+        elif val is not None:
+            meta[key] = str(val)
+    fm = format_frontmatter(meta)
+    return f"{fm}\n\n{doc.body}\n" if doc.body else f"{fm}\n"
 
 
 class ClaudeAdapter:

@@ -229,6 +229,49 @@ def build_parser() -> argparse.ArgumentParser:
             "and hardcoded user paths (stdlib detector; exits 1 on findings)"
         ),
     )
+
+    from cinch.importer import IMPORT_DIALECTS
+
+    import_cmd = commands.add_parser(
+        "import",
+        help="Decompile legacy .cursorrules / Claude skills / Copilot / Cline into Cinch format",
+        parents=[shared],
+        description=(
+            "Reverse-sync legacy harness rules into canonical Cinch skill markdown "
+            "under --out (default: .cinch/imported). Auto-detects dialect from path "
+            "markers; pass --from-harness when detection is ambiguous."
+        ),
+    )
+    import_cmd.add_argument(
+        "path",
+        help=(
+            "Legacy file or directory "
+            "(.cursorrules, SKILL.md, .github/instructions, .clinerules, …)"
+        ),
+    )
+    import_cmd.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="Output directory for imported skills (default: .cinch/imported)",
+    )
+    import_cmd.add_argument(
+        "--from-harness",
+        "--from",
+        dest="from_harness",
+        choices=IMPORT_DIALECTS,
+        help="Source dialect when auto-detect is ambiguous or the path has no markers",
+    )
+    import_cmd.add_argument(
+        "--yes",
+        action="store_true",
+        help="Overwrite existing imported skills without prompting",
+    )
+    import_cmd.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview imported skills without writing files",
+    )
     return parser
 
 
@@ -254,6 +297,8 @@ def main(argv: list[str] | None = None) -> int:
             return _diff(args)
         if args.command == "check":
             return _check(args)
+        if args.command == "import":
+            return _import(args)
         return _init(args)
     except CinchError as exc:
         print(f"cinch: {exc}", file=sys.stderr)
@@ -954,6 +999,64 @@ def _check(args: argparse.Namespace) -> int:
 
     has_errors = any(d.severity == "error" for d in diagnostics)
     return 1 if has_errors else 0
+
+
+def _import(args: argparse.Namespace) -> int:
+    from cinch.importer import DEFAULT_OUT, run_import
+
+    path = Path(args.path).expanduser()
+    out = Path(args.out).expanduser() if args.out else Path.cwd() / DEFAULT_OUT
+    result = run_import(
+        path,
+        out=out,
+        dialect=getattr(args, "from_harness", None),
+        dry_run=bool(args.dry_run),
+        overwrite=bool(args.yes),
+    )
+
+    if not console.is_terminal:
+        print("cinch  " + HOOK)
+        print(f"  import    {result.dialect}")
+        print(f"  out       {result.out}")
+        if result.written:
+            print("  skills    " + ", ".join(result.written))
+        else:
+            print("  skills    (none)")
+        for skip in result.skipped:
+            print(f"  skipped   {skip}")
+        if result.dry_run:
+            print("  dry-run   no files written")
+            for rel, text in result.preview:
+                print(f"\n--- [file: {rel}] ---")
+                print(text, end="" if text.endswith("\n") else "\n")
+        return 0
+
+    body = Text()
+    body.append("import    ", style="dim")
+    body.append(f"{result.dialect}\n", style="bold")
+    body.append("out       ", style="dim")
+    body.append(f"{result.out}\n")
+    if result.written:
+        body.append("skills    ", style="dim")
+        body.append(", ".join(result.written) + "\n", style="green")
+    else:
+        body.append("skills    ", style="dim")
+        body.append("(none)\n", style="dim italic")
+    for skip in result.skipped:
+        body.append("skipped   ", style="dim")
+        body.append(f"{skip}\n", style="yellow")
+    if result.dry_run:
+        body.append("dry-run   ", style="dim")
+        body.append("no files written\n", style="bold yellow")
+
+    console.print(
+        Panel(body, title="[bold]cinch import[/bold]", subtitle=HOOK, border_style="blue")
+    )
+    if result.dry_run:
+        for rel, text in result.preview:
+            console.print(f"\n[dim]── file: [bold]{rel}[/bold] ──[/dim]")
+            console.print(Syntax(text, "markdown", theme="monokai", padding=1))
+    return 0
 
 
 if __name__ == "__main__":
