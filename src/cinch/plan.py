@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from cinch.detect import detect_harnesses, detect_toolchain
 from cinch.doc import parse_doc
 from cinch.errors import CinchError
 from cinch.inventory import Item, collect_inventory
+from cinch.params import apply_parameters_to_doc
 
 __all__ = ["CinchError", "Plan", "PlannedFile", "SkippedItem", "parse_csv", "resolve_plan"]
 
@@ -85,6 +87,8 @@ def resolve_plan(
     extra_roots: tuple[Path, ...] = (),
     dry_run: bool = False,
     binaries: set[str] | None = None,
+    param_overrides: Mapping[str, str] | None = None,
+    interactive_params: bool = False,
 ) -> Plan:
     project = (project or Path.cwd()).resolve()
     home = (home or Path.home()).expanduser()
@@ -211,7 +215,11 @@ def resolve_plan(
                     )
             continue
 
-        doc = parse_doc(item)
+        doc = apply_parameters_to_doc(
+            parse_doc(item),
+            cli_overrides=param_overrides,
+            interactive=interactive_params,
+        )
         for target in targets:
             adapter = get_adapter(target)
             rendered_list = adapter.render(doc)

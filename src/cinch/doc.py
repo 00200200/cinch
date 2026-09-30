@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from cinch.inventory import Item
+
+_INT_RE = re.compile(r"^[+-]?\d+$")
 
 
 @dataclass(frozen=True)
@@ -23,8 +26,101 @@ class Doc:
     extra_meta: dict[str, Any] = field(default_factory=dict)
 
 
+def _unquote(val: str) -> str:
+    val = val.strip()
+    if len(val) >= 2 and ((val[0] == val[-1] == '"') or (val[0] == val[-1] == "'")):
+        return val[1:-1]
+    return val
+
+
+def _split_top_level(inner: str, sep: str = ",") -> list[str]:
+    """Split on ``sep`` not inside quotes, brackets, or braces."""
+    parts: list[str] = []
+    buf: list[str] = []
+    depth_brack = 0
+    depth_brace = 0
+    quote: str | None = None
+    i = 0
+    while i < len(inner):
+        ch = inner[i]
+        if quote:
+            buf.append(ch)
+            if ch == "\\" and i + 1 < len(inner):
+                buf.append(inner[i + 1])
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+            i += 1
+            continue
+        if ch in ("'", '"'):
+            quote = ch
+            buf.append(ch)
+        elif ch == "[":
+            depth_brack += 1
+            buf.append(ch)
+        elif ch == "]":
+            depth_brack = max(0, depth_brack - 1)
+            buf.append(ch)
+        elif ch == "{":
+            depth_brace += 1
+            buf.append(ch)
+        elif ch == "}":
+            depth_brace = max(0, depth_brace - 1)
+            buf.append(ch)
+        elif ch == sep and depth_brack == 0 and depth_brace == 0:
+            parts.append("".join(buf).strip())
+            buf = []
+        else:
+            buf.append(ch)
+        i += 1
+    tail = "".join(buf).strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+def _parse_flow_value(val: str) -> Any:
+    """Parse a single YAML-ish scalar, inline list, or inline mapping."""
+    val = val.strip()
+    if not val:
+        return ""
+    if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+        return val[1:-1]
+    if val.startswith("[") and val.endswith("]"):
+        inner = val[1:-1].strip()
+        if not inner:
+            return []
+        return [_parse_flow_value(p) for p in _split_top_level(inner)]
+    if val.startswith("{") and val.endswith("}"):
+        inner = val[1:-1].strip()
+        if not inner:
+            return {}
+        out: dict[str, Any] = {}
+        for part in _split_top_level(inner):
+            if ":" not in part:
+                continue
+            k, _, v = part.partition(":")
+            out[k.strip()] = _parse_flow_value(v.strip())
+        return out
+    lowered = val.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    if lowered == "null" or lowered == "~":
+        return None
+    if _INT_RE.fullmatch(val):
+        return int(val)
+    return _unquote(val)
+
+
 def parse_frontmatter(content: str) -> tuple[dict[str, Any], str]:
-    """Parse YAML-style frontmatter delimited by ---."""
+    """Parse YAML-style frontmatter delimited by ---.
+
+    Supports flat keys, indented lists, nested mappings (e.g. ``parameters``),
+    and inline ``{...}`` / ``[...]`` flow values. Intentionally not full YAML.
+    """
     if not content.startswith("---"):
         return {}, content
 
@@ -38,48 +134,84 @@ def parse_frontmatter(content: str) -> tuple[dict[str, Any], str]:
     if end_idx == -1:
         return {}, content
 
-    meta: dict[str, Any] = {}
     fm_lines = lines[1:end_idx]
     body = "\n".join(lines[end_idx + 1 :])
 
-    current_key: str | None = None
-    current_list: list[str] | None = None
+    root: dict[str, Any] = {}
+    # Stack of (indent, container) where container is dict or list
+    stack: list[tuple[int, Any]] = [(-1, root)]
+    pending: tuple[int, dict[str, Any], str] | None = None
 
-    for line in fm_lines:
-        line_stripped = line.strip()
-        if not line_stripped or line_stripped.startswith("#"):
+    def _close_pending_as(kind: str) -> None:
+        nonlocal pending
+        if pending is None:
+            return
+        indent, parent, key = pending
+        if kind == "list":
+            container: list[Any] | dict[str, Any] = []
+        else:
+            container = {}
+        parent[key] = container
+        stack.append((indent, container))
+        pending = None
+
+    for raw_line in fm_lines:
+        if "\t" in raw_line:
+            continue
+        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
             continue
 
-        if line_stripped.startswith("- ") and current_key and current_list is not None:
-            val = line_stripped[2:].strip().strip("\"'")
-            current_list.append(val)
-            continue
+        indent = len(raw_line) - len(raw_line.lstrip(" "))
+        stripped = raw_line.strip()
 
-        if ":" in line:
-            if current_key and current_list is not None:
-                meta[current_key] = current_list
-                current_list = None
-
-            key, _, val = line.partition(":")
-            key = key.strip()
-            val = val.strip()
-
-            if val == "":
-                current_key = key
-                current_list = []
-            elif val.startswith("[") and val.endswith("]"):
-                inner = val[1:-1].strip()
-                items = [x.strip().strip("\"'") for x in inner.split(",") if x.strip()]
-                meta[key] = items
-                current_key = None
+        if pending is not None:
+            p_indent, _, _ = pending
+            if indent > p_indent:
+                if stripped.startswith("- ") or stripped == "-":
+                    _close_pending_as("list")
+                else:
+                    _close_pending_as("map")
             else:
-                meta[key] = val.strip("\"'")
-                current_key = None
+                # Empty key with no children → empty string (legacy flat behaviour)
+                p_indent, parent, key = pending
+                parent[key] = ""
+                pending = None
 
-    if current_key and current_list is not None:
-        meta[current_key] = current_list
+        while len(stack) > 1 and indent <= stack[-1][0]:
+            stack.pop()
 
-    return meta, body
+        container = stack[-1][1]
+
+        if stripped.startswith("- ") or stripped == "-":
+            item_raw = stripped[1:].strip()
+            value = _parse_flow_value(item_raw) if item_raw else ""
+            if isinstance(container, list):
+                container.append(value)
+            elif isinstance(container, dict):
+                # Rare: list item without pending — ignore malformed
+                continue
+            continue
+
+        if ":" not in stripped:
+            continue
+
+        key, _, val = stripped.partition(":")
+        key = key.strip()
+        val = val.strip()
+        if not key or not isinstance(container, dict):
+            continue
+
+        if val == "":
+            pending = (indent, container, key)
+            continue
+
+        container[key] = _parse_flow_value(val)
+
+    if pending is not None:
+        _, parent, key = pending
+        parent[key] = ""
+
+    return root, body
 
 
 def parse_doc(item: Item) -> Doc:
@@ -134,6 +266,12 @@ def parse_doc(item: Item) -> Doc:
             clean_body = "\n".join(lines[1:]).strip()
     else:
         clean_body = body
+
+    # Ensure description is a string (frontmatter may parse unquoted nums rarely)
+    if not isinstance(description, str):
+        description = str(description)
+    if not isinstance(doc_name, str):
+        doc_name = str(doc_name)
 
     return Doc(
         kind=kind,

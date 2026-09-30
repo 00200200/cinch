@@ -22,6 +22,7 @@ from rich.text import Text
 from cinch.catalog import HARNESS_ORDER, HARNESSES, PURPOSES
 from cinch.detect import detect_harnesses
 from cinch.inventory import Item
+from cinch.params import parse_param_flags
 from cinch.plan import CinchError, parse_csv, resolve_plan
 from cinch.wire import apply_plan
 
@@ -95,6 +96,13 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--yes", action="store_true", help="Non-interactive; do not prompt")
     init.add_argument("--dry-run", action="store_true", help="Print the plan without writing")
     init.add_argument(
+        "--param",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Override a skill parameter (repeatable); wins over CINCH_PARAM_* env vars",
+    )
+    init.add_argument(
         "--starter",
         action="store_true",
         help=(
@@ -163,6 +171,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="DIR",
         help="Extra directory to search for skills",
+    )
+    preview.add_argument(
+        "--param",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Override a skill parameter (repeatable); wins over CINCH_PARAM_* env vars",
+    )
+    preview.add_argument(
+        "--yes",
+        action="store_true",
+        help="Non-interactive; error if required parameters are unset",
     )
 
     diff_cmd = commands.add_parser(
@@ -379,6 +399,8 @@ def _init(args: argparse.Namespace) -> int:
         commands=commands,
         extra_roots=extra,
         dry_run=args.dry_run,
+        param_overrides=parse_param_flags(getattr(args, "param", None)),
+        interactive_params=not args.yes and sys.stdin.isatty(),
     )
     result = apply_plan(plan)
     if not console.is_terminal:
@@ -656,6 +678,13 @@ def _preview(args: argparse.Namespace) -> int:
         raise CinchError(f"Skill or item '{args.skill}' not found in {source} inventory.")
 
     doc = parse_doc(matching[0])
+    from cinch.params import apply_parameters_to_doc
+
+    doc = apply_parameters_to_doc(
+        doc,
+        cli_overrides=parse_param_flags(getattr(args, "param", None)),
+        interactive=not getattr(args, "yes", False) and sys.stdin.isatty(),
+    )
     adapter = get_adapter(args.target)
     rendered = adapter.render(doc)
 
