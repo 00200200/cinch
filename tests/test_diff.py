@@ -247,3 +247,39 @@ def test_diff_multiple_targets(tmp_path: Path, capsys: pytest.CaptureFixture[str
     out = capsys.readouterr().out
     assert "--- a/.github/instructions/code-reviewer.instructions.md" in out
     assert "+Modified copilot instructions." in out
+
+
+def test_diff_stat_flag(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Test cinch diff --stat outputs token deltas."""
+    home = tmp_path / "home"
+    make_skill(home / ".claude" / "skills", "code-reviewer")
+    project = tmp_path / "project"
+    project.mkdir()
+
+    main(
+        [
+            "init",
+            str(project),
+            "--from-harness",
+            "claude",
+            "--harness",
+            "cursor",
+            "--skills",
+            "code-reviewer",
+            "--yes",
+            "--home",
+            str(home),
+        ]
+    )
+    capsys.readouterr()
+
+    cursor_file = project / ".agents" / "skills" / "code-reviewer" / "SKILL.md"
+    assert cursor_file.exists()
+    cursor_file.write_text("Added a lot of new content with several extra words.\n")
+
+    code = main(["diff", str(project), "--home", str(home), "--stat"])
+    assert code == 1
+    out = capsys.readouterr().out
+    assert "Token & file statistics:" in out
+    assert "tokens" in out
+
