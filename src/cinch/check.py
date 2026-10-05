@@ -416,6 +416,9 @@ def _lint_skill_default(
                             )
                         )
 
+    # W005: Invalid requires entry type (soft; strict uses E008 via schema)
+    diagnostics.extend(_lint_requires_shape(skill_file, meta, field_lines, severity="warning"))
+
     # I001: Multi-file skill detected (has scripts/ or references/ directory)
     if (skill_dir / "scripts").is_dir() or (skill_dir / "references").is_dir():
         diagnostics.append(
@@ -428,6 +431,62 @@ def _lint_skill_default(
             )
         )
 
+    return diagnostics
+
+
+def _lint_requires_shape(
+    skill_file: Path,
+    meta: dict[str, Any],
+    field_lines: dict[str, int],
+    *,
+    severity: Severity,
+) -> list[Diagnostic]:
+    """Validate ``requires`` is a string or list of non-empty strings."""
+    if "requires" not in meta:
+        return []
+    diagnostics: list[Diagnostic] = []
+    line_no = field_lines.get("requires", 1)
+    val = meta["requires"]
+    rule = "E008" if severity == "error" else "W005"
+    if isinstance(val, str):
+        if not val.strip():
+            diagnostics.append(
+                Diagnostic(
+                    path=skill_file,
+                    line=line_no,
+                    severity=severity,
+                    rule=rule,
+                    message="Invalid 'requires': skill name must be a non-empty string",
+                )
+            )
+        return diagnostics
+    if isinstance(val, (list, tuple)):
+        for item in val:
+            if not isinstance(item, str) or not item.strip():
+                diagnostics.append(
+                    Diagnostic(
+                        path=skill_file,
+                        line=line_no,
+                        severity=severity,
+                        rule=rule,
+                        message=(
+                            "Invalid entry in 'requires': expected non-empty skill name string, "
+                            f"got {type(item).__name__}"
+                        ),
+                    )
+                )
+        return diagnostics
+    diagnostics.append(
+        Diagnostic(
+            path=skill_file,
+            line=line_no,
+            severity=severity,
+            rule=rule,
+            message=(
+                f"Invalid 'requires': expected string or list of strings, got {type(val).__name__}"
+            ),
+        )
+    )
     return diagnostics
 
 
@@ -568,6 +627,92 @@ def lint_directory(root: Path, *, strict: bool = False) -> list[Diagnostic]:
         ]
 
     diagnostics: list[Diagnostic] = []
+    parsed: list[tuple[Path, dict[str, Any], dict[str, int]]] = []
     for sf in skill_files:
         diagnostics.extend(lint_skill(sf, strict=strict))
+        try:
+            content = sf.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        meta, field_lines, fm_errors, _, _ = _parse_frontmatter(content, sf)
+        if fm_errors:
+            continue
+        parsed.append((sf, meta, field_lines))
+
+    diagnostics.extend(_lint_requires_graph(parsed))
+    return diagnostics
+
+
+def _lint_requires_graph(
+    parsed: list[tuple[Path, dict[str, Any], dict[str, int]]],
+) -> list[Diagnostic]:
+    """Report unknown ``requires`` targets and cycles across a skill set."""
+    from cinch.errors import CinchError
+    from cinch.resolver import parse_requires, resolve_skill_order
+
+    if len(parsed) < 1:
+        return []
+
+    by_name: dict[str, Path] = {}
+    field_by_name: dict[str, dict[str, int]] = {}
+    graph: dict[str, tuple[str, ...]] = {}
+    diagnostics: list[Diagnostic] = []
+
+    for skill_file, meta, field_lines in parsed:
+        name = meta.get("name")
+        if not isinstance(name, str) or not name.strip():
+            name = skill_file.parent.name
+        else:
+            name = name.strip()
+        by_name[name] = skill_file
+        field_by_name[name] = field_lines
+        if "requires" not in meta:
+            graph[name] = ()
+            continue
+        try:
+            deps = parse_requires(meta.get("requires"))
+        except CinchError:
+            graph[name] = ()
+            continue
+        graph[name] = deps
+
+    available = set(by_name)
+    for name, deps in graph.items():
+        skill_file = by_name[name]
+        line_no = field_by_name[name].get("requires", 1)
+        for dep in deps:
+            if dep not in available:
+                diagnostics.append(
+                    Diagnostic(
+                        path=skill_file,
+                        line=line_no,
+                        severity="error",
+                        rule="E008",
+                        message=f"Unknown required skill '{dep}' (required by '{name}')",
+                    )
+                )
+
+    # Cycle check on the full graph (ignore unknown edges already reported).
+    known_graph = {name: tuple(d for d in deps if d in available) for name, deps in graph.items()}
+    try:
+        resolve_skill_order(sorted(known_graph), known_graph, available=available)
+    except CinchError as exc:
+        message = str(exc)
+        if "Circular" not in message:
+            return diagnostics
+        # Attribute the cycle to the first skill named in the message path.
+        cycle_skills = [p.strip() for p in message.split(":")[-1].split("->")]
+        cycle_skills = [p for p in cycle_skills if p]
+        anchor = cycle_skills[0] if cycle_skills else next(iter(known_graph), None)
+        if anchor is None or anchor not in by_name:
+            return diagnostics
+        diagnostics.append(
+            Diagnostic(
+                path=by_name[anchor],
+                line=field_by_name[anchor].get("requires", 1),
+                severity="error",
+                rule="E009",
+                message=message,
+            )
+        )
     return diagnostics
