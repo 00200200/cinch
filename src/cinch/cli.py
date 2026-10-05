@@ -936,6 +936,7 @@ def _diff(args: argparse.Namespace) -> int:
         if git_ref:
             try:
                 import subprocess
+
                 ref_cmd = ["git", "show", f"{git_ref}:{file.relpath}"]
                 res = subprocess.run(ref_cmd, cwd=project, capture_output=True, text=True)
                 if res.returncode == 0:
@@ -987,7 +988,9 @@ def _diff(args: argparse.Namespace) -> int:
                 else:
                     token_hint = f" ({'+' if delta_tokens >= 0 else ''}{delta_tokens} tokens)"
                     syntax = Syntax(diff_text, "diff", theme="monokai", padding=1)
-                    console.print(Panel(syntax, title=f"{file.relpath}{token_hint}", border_style="yellow"))
+                    console.print(
+                        Panel(syntax, title=f"{file.relpath}{token_hint}", border_style="yellow")
+                    )
 
     if getattr(args, "stat", False) and stat_records:
         if not console.is_terminal:
@@ -1005,7 +1008,10 @@ def _diff(args: argparse.Namespace) -> int:
                 sign = "+" if delta >= 0 else ""
                 table.add_row(path, f"[{color}]{sign}{delta} tokens[/{color}]")
             console.print(table)
-            console.print(f"[bold]Total token delta:[/bold] [yellow]+{total_added_tokens}[/yellow] / [green]-{total_removed_tokens}[/green]")
+            console.print(
+                f"[bold]Total token delta:[/bold] [yellow]+{total_added_tokens}[/yellow] / "
+                f"[green]-{total_removed_tokens}[/green]"
+            )
 
     manifest_paths = {item.get("path") for item in results if item.get("path")}
     planned_paths = {file.relpath for file in plan.files}

@@ -282,4 +282,3 @@ def test_diff_stat_flag(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> N
     out = capsys.readouterr().out
     assert "Token & file statistics:" in out
     assert "tokens" in out
-
