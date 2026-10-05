@@ -26,7 +26,7 @@ DIALECT_KEYS = frozenset(
     }
 )
 # Cinch-native keys consumed at wire/compile time (stripped before dialect output).
-CINCH_KEYS = frozenset({"parameters"})
+CINCH_KEYS = frozenset({"parameters", "requires"})
 ALLOWED_KEYS = REQUIRED_KEYS | OPTIONAL_META_KEYS | DIALECT_KEYS | CINCH_KEYS
 
 # Soft upper bound used by Cursor/Windsurf-style rule UIs (chars).
@@ -131,6 +131,64 @@ def _collect_glob_patterns(meta: dict[str, Any], key: str, issues: list[SchemaIs
     return items
 
 
+def _collect_requires(meta: dict[str, Any], issues: list[SchemaIssue]) -> tuple[str, ...]:
+    """Validate optional ``requires`` list of skill name strings."""
+    if "requires" not in meta:
+        return ()
+    val = meta["requires"]
+    items: list[str] = []
+    if isinstance(val, str):
+        items = [val]
+    elif isinstance(val, (list, tuple)):
+        for item in val:
+            if isinstance(item, str):
+                items.append(item)
+            else:
+                issues.append(
+                    SchemaIssue(
+                        field="requires",
+                        rule="E008",
+                        message=(
+                            f"Invalid entry in 'requires': expected skill name string, "
+                            f"got {type(item).__name__}"
+                        ),
+                        hint="Use requires: [skill-a, skill-b]",
+                    )
+                )
+    else:
+        issues.append(
+            SchemaIssue(
+                field="requires",
+                rule="E008",
+                message=(
+                    f"Invalid 'requires': expected string or list of strings, "
+                    f"got {type(val).__name__}"
+                ),
+                hint="Use requires: [skill-a, skill-b]",
+            )
+        )
+        return ()
+
+    names: list[str] = []
+    seen: set[str] = set()
+    for raw in items:
+        name = raw.strip()
+        if not name:
+            issues.append(
+                SchemaIssue(
+                    field="requires",
+                    rule="E008",
+                    message="Invalid 'requires': skill name must be a non-empty string",
+                )
+            )
+            continue
+        if name in seen:
+            continue
+        seen.add(name)
+        names.append(name)
+    return tuple(names)
+
+
 @dataclass(frozen=True)
 class SkillManifestSchema:
     """Validated skill frontmatter. Build via :meth:`validate`."""
@@ -142,6 +200,7 @@ class SkillManifestSchema:
     license: str | None = None
     paths: tuple[str, ...] = ()
     globs: tuple[str, ...] = ()
+    requires: tuple[str, ...] = ()
 
     @classmethod
     def validate(cls, meta: dict[str, Any]) -> tuple[SkillManifestSchema | None, list[SchemaIssue]]:
@@ -238,6 +297,7 @@ class SkillManifestSchema:
 
         collected_paths = _collect_glob_patterns(meta, "paths", issues)
         collected_globs = _collect_glob_patterns(meta, "globs", issues)
+        collected_requires = _collect_requires(meta, issues)
 
         def _opt_str(key: str) -> str | None:
             if key not in meta:
@@ -273,6 +333,7 @@ class SkillManifestSchema:
                 license=license_,
                 paths=tuple(collected_paths),
                 globs=tuple(collected_globs),
+                requires=collected_requires,
             ),
             issues,
         )

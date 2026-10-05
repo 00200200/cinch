@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from cinch.adapters import get_adapter
 from cinch.catalog import HARNESSES, PURPOSES
 from cinch.detect import detect_harnesses, detect_toolchain
-from cinch.doc import parse_doc
+from cinch.doc import Doc, parse_doc
 from cinch.errors import CinchError
 from cinch.inventory import Item, collect_inventory
 from cinch.params import apply_parameters_to_doc
+from cinch.resolver import expand_with_requires, requires_from_meta
 
 __all__ = ["CinchError", "Plan", "PlannedFile", "SkippedItem", "parse_csv", "resolve_plan"]
 
@@ -182,6 +183,8 @@ def resolve_plan(
             pool = [item for item in inventory if purpose in item.tags]
         selected.extend(pool)
 
+    selected = _expand_selected_requires(selected, inventory)
+
     files: list[PlannedFile] = []
 
     for item in selected:
@@ -220,6 +223,7 @@ def resolve_plan(
             cli_overrides=param_overrides,
             interactive=interactive_params,
         )
+        doc = _strip_requires_meta(doc)
         for target in targets:
             adapter = get_adapter(target)
             rendered_list = adapter.render(doc)
@@ -254,3 +258,47 @@ def resolve_plan(
         files=tuple(files),
         skipped=tuple(skipped_items),
     )
+
+
+def _strip_requires_meta(doc: Doc) -> Doc:
+    """Drop Cinch-native ``requires`` before dialect adapters render frontmatter."""
+    if not doc.extra_meta or "requires" not in doc.extra_meta:
+        return doc if not doc.requires else replace(doc, requires=())
+    new_meta = {k: v for k, v in doc.extra_meta.items() if k != "requires"}
+    return replace(doc, requires=(), extra_meta=new_meta)
+
+
+def _expand_selected_requires(selected: list[Item], inventory: list[Item]) -> list[Item]:
+    """Include transitive ``requires`` skills (deduped, dependency-first order)."""
+    skill_by_name = {item.name: item for item in inventory if item.kind == "skill"}
+    if not skill_by_name:
+        return selected
+
+    graph: dict[str, tuple[str, ...]] = {}
+    for name, item in skill_by_name.items():
+        doc = parse_doc(item)
+        if "requires" not in doc.extra_meta:
+            graph[name] = ()
+            continue
+        try:
+            graph[name] = requires_from_meta(doc.extra_meta)
+        except CinchError as exc:
+            raise CinchError(f"Skill '{name}': {exc}") from exc
+
+    selected_skills = [item.name for item in selected if item.kind == "skill"]
+    if not selected_skills:
+        return selected
+
+    # Only expand when at least one selected skill declares requires.
+    if not any(graph.get(name) for name in selected_skills):
+        return selected
+
+    ordered = expand_with_requires(
+        selected_skills,
+        graph,
+        available=skill_by_name.keys(),
+    )
+
+    non_skills = [item for item in selected if item.kind != "skill"]
+    expanded_skills = [skill_by_name[name] for name in ordered]
+    return expanded_skills + non_skills

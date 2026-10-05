@@ -23,6 +23,7 @@ class Doc:
     body: str  # markdown with frontmatter stripped
     paths: tuple[str, ...] = ()  # globs declared by the item
     support: Path | None = None  # source dir when it holds extra files (scripts, references)
+    requires: tuple[str, ...] = ()  # skill names from ``requires:`` frontmatter
     extra_meta: dict[str, Any] = field(default_factory=dict)
 
 
@@ -259,6 +260,16 @@ def parse_doc(item: Item) -> Doc:
     else:
         paths = tuple(paths_val)
 
+    requires_val = meta.get("requires") or ()
+    if isinstance(requires_val, str):
+        requires: tuple[str, ...] = (requires_val.strip(),) if requires_val.strip() else ()
+    elif isinstance(requires_val, (list, tuple)):
+        requires = tuple(
+            item.strip() for item in requires_val if isinstance(item, str) and item.strip()
+        )
+    else:
+        requires = ()
+
     if meta:
         clean_body = body.strip()
         lines = clean_body.splitlines()
@@ -279,6 +290,7 @@ def parse_doc(item: Item) -> Doc:
         description=description,
         body=clean_body,
         paths=paths,
+        requires=requires,
         support=support_dir,
         extra_meta=meta,
     )
