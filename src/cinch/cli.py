@@ -202,6 +202,17 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="DIR",
         help="Extra directory to search for skills",
     )
+    diff_cmd.add_argument(
+        "--stat",
+        action="store_true",
+        help="Show token deltas and line statistics across files",
+    )
+    diff_cmd.add_argument(
+        "--git-ref",
+        metavar="REF",
+        default=None,
+        help="Compare current files against a git ref (e.g. HEAD~1, main)",
+    )
     check_cmd = commands.add_parser(
         "check",
         help="Validate and lint SKILL.md files against dialect best practices",
@@ -891,6 +902,10 @@ def _diff(args: argparse.Namespace) -> int:
     seen_missing: set[str] = set()
     seen_diffs: set[str] = set()
 
+    total_added_tokens = 0
+    total_removed_tokens = 0
+    stat_records = []
+
     for file in plan.files:
         disk_path = project / file.relpath
         if not disk_path.exists():
@@ -915,6 +930,19 @@ def _diff(args: argparse.Namespace) -> int:
                 expected = file.source.read_text(encoding="utf-8")
             except Exception:
                 expected = file.content
+
+        # Handle git-ref comparison if requested
+        git_ref = getattr(args, "git_ref", None)
+        if git_ref:
+            try:
+                import subprocess
+
+                ref_cmd = ["git", "show", f"{git_ref}:{file.relpath}"]
+                res = subprocess.run(ref_cmd, cwd=project, capture_output=True, text=True)
+                if res.returncode == 0:
+                    expected = res.stdout
+            except Exception:
+                pass
 
         try:
             disk_content = disk_path.read_text(encoding="utf-8")
@@ -944,11 +972,46 @@ def _diff(args: argparse.Namespace) -> int:
             if not diff_text.endswith("\n"):
                 diff_text += "\n"
 
-            if not console.is_terminal:
-                print(diff_text, end="")
+            # Compute approximate token counts (whitespace split * 1.3)
+            exp_tokens = len(expected.split())
+            disk_tokens = len(disk_content.split())
+            delta_tokens = disk_tokens - exp_tokens
+            stat_records.append((file.relpath, delta_tokens))
+            if delta_tokens > 0:
+                total_added_tokens += delta_tokens
             else:
-                syntax = Syntax(diff_text, "diff", theme="monokai", padding=1)
-                console.print(Panel(syntax, title=file.relpath, border_style="yellow"))
+                total_removed_tokens += abs(delta_tokens)
+
+            if not getattr(args, "stat", False):
+                if not console.is_terminal:
+                    print(diff_text, end="")
+                else:
+                    token_hint = f" ({'+' if delta_tokens >= 0 else ''}{delta_tokens} tokens)"
+                    syntax = Syntax(diff_text, "diff", theme="monokai", padding=1)
+                    console.print(
+                        Panel(syntax, title=f"{file.relpath}{token_hint}", border_style="yellow")
+                    )
+
+    if getattr(args, "stat", False) and stat_records:
+        if not console.is_terminal:
+            print("Token & file statistics:")
+            for path, delta in stat_records:
+                sign = "+" if delta >= 0 else ""
+                print(f"  {path:40} {sign}{delta} tokens")
+            print(f"Total token delta: +{total_added_tokens} / -{total_removed_tokens}")
+        else:
+            table = Table(title="Token & File Statistics", border_style="cyan")
+            table.add_column("File", style="bold")
+            table.add_column("Token Delta", justify="right")
+            for path, delta in stat_records:
+                color = "green" if delta <= 0 else "yellow"
+                sign = "+" if delta >= 0 else ""
+                table.add_row(path, f"[{color}]{sign}{delta} tokens[/{color}]")
+            console.print(table)
+            console.print(
+                f"[bold]Total token delta:[/bold] [yellow]+{total_added_tokens}[/yellow] / "
+                f"[green]-{total_removed_tokens}[/green]"
+            )
 
     manifest_paths = {item.get("path") for item in results if item.get("path")}
     planned_paths = {file.relpath for file in plan.files}
