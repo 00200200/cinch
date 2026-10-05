@@ -240,6 +240,12 @@ def build_parser() -> argparse.ArgumentParser:
             "and hardcoded user paths (stdlib detector; exits 1 on findings)"
         ),
     )
+    check_cmd.add_argument(
+        "--policy",
+        metavar="PATH",
+        default=None,
+        help="Path to .cinchpolicy.yml corporate compliance rules file",
+    )
 
     from cinch.importer import IMPORT_DIALECTS
 
@@ -1059,6 +1065,17 @@ def _check(args: argparse.Namespace) -> int:
             diagnostics = diagnostics + audit_skill(target)
         else:
             diagnostics = diagnostics + audit_directory(target)
+
+    # Check for corporate policy (.cinchpolicy.yml or --policy)
+    from cinch.policy import audit_policy_directory, audit_policy_skill, load_policy
+
+    policy_path = Path(args.policy) if getattr(args, "policy", None) else None
+    policy = load_policy(policy_path, start_dir=target if target.is_dir() else target.parent)
+    if policy is not None:
+        if target.is_file() or target.suffix == ".md":
+            diagnostics = diagnostics + audit_policy_skill(target, policy)
+        else:
+            diagnostics = diagnostics + audit_policy_directory(target, policy)
 
     if console.is_terminal:
         if diagnostics:
