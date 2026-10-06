@@ -460,6 +460,22 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Force reinstallation if skill already exists",
     )
+    install_cmd.add_argument(
+        "--policy",
+        metavar="PATH",
+        default=None,
+        help="Path to .cinchpolicy.yml corporate compliance rules file",
+    )
+    install_cmd.add_argument(
+        "--enforce-policy",
+        action="store_true",
+        help="Enforce trust policy and abort if violations exist",
+    )
+    install_cmd.add_argument(
+        "--reviewed",
+        action="store_true",
+        help="Confirm human review of executable scripts in package",
+    )
 
     update_cmd = commands.add_parser(
         "update",
@@ -491,6 +507,54 @@ def build_parser() -> argparse.ArgumentParser:
         "--project",
         default=".",
         help="Project directory (default: cwd)",
+    )
+
+    audit_cmd = commands.add_parser(
+        "audit",
+        help="Audit skills and repositories against trust, provenance, and security policy",
+        parents=[shared],
+    )
+    audit_cmd.add_argument(
+        "target",
+        nargs="?",
+        default=".",
+        help="Path to local skill/repository or remote source (e.g. gh:owner/repo@v1, default: .)",
+    )
+    audit_cmd.add_argument(
+        "--source",
+        default="",
+        help="Explicit source URL or identifier when auditing a local checkout",
+    )
+    audit_cmd.add_argument(
+        "--ref",
+        default=None,
+        help="Git ref (tag, branch, or commit SHA)",
+    )
+    audit_cmd.add_argument(
+        "--commit",
+        default=None,
+        help="Resolved commit SHA",
+    )
+    audit_cmd.add_argument(
+        "--policy",
+        metavar="PATH",
+        default=None,
+        help="Path to .cinchpolicy.yml corporate compliance rules file",
+    )
+    audit_cmd.add_argument(
+        "--json",
+        action="store_true",
+        help="Output audit report as structured JSON",
+    )
+    audit_cmd.add_argument(
+        "--enforce",
+        action="store_true",
+        help="Exit non-zero if policy violations are detected (enforced mode)",
+    )
+    audit_cmd.add_argument(
+        "--reviewed",
+        action="store_true",
+        help="Flag confirming that scripts have undergone human review",
     )
     return parser
 
@@ -533,6 +597,8 @@ def main(argv: list[str] | None = None) -> int:
             return _update(args)
         if args.command == "uninstall":
             return _uninstall(args)
+        if args.command == "audit":
+            return _audit(args)
         return _init(args)
     except CinchError as exc:
         print(f"cinch: {exc}", file=sys.stderr)
@@ -541,18 +607,96 @@ def main(argv: list[str] | None = None) -> int:
 
 def _install(args: argparse.Namespace) -> int:
     from cinch.package import install_package
+    from cinch.policy import load_policy
+
+    policy = load_policy(Path(args.policy) if getattr(args, "policy", None) else None)
 
     results = install_package(
         args.package,
         project=Path(args.project).resolve(),
         skill_name=args.skill,
         force=args.force,
+        policy=policy,
+        enforce_policy=getattr(args, "enforce_policy", False),
+        reviewed=getattr(args, "reviewed", False),
     )
     for res in results:
         ref_str = f" @ {res.ref}" if res.ref else ""
         print(f"Installed {res.name} from {res.source}{ref_str} -> {res.vendor_path}")
         print(f"  commit:   {res.commit[:8]}")
         print(f"  checksum: {res.checksum}")
+    return 0
+
+
+def _audit(args: argparse.Namespace) -> int:
+    import json
+    import subprocess
+
+    from cinch.package import load_lockfile
+    from cinch.policy import PolicyConfig, evaluate_trust_policy, load_policy
+
+    target_str = args.target.strip()
+    policy = (
+        load_policy(Path(args.policy) if args.policy else None)
+        or load_policy(start_dir=Path.cwd())
+        or PolicyConfig()
+    )
+
+    project_root = Path.cwd()
+    lock_data = load_lockfile(project_root / "cinch.lock")
+
+    if target_str.startswith(("gh:", "https://", "http://", "git@")) or (
+        "@" in target_str and not Path(target_str).exists()
+    ):
+        from cinch.package import parse_package_source, resolve_commit_sha, resolve_git_repository
+
+        url, parsed_ref = parse_package_source(target_str)
+        ref = args.ref or parsed_ref
+        repo_cache = resolve_git_repository(url)
+        commit_sha = args.commit or resolve_commit_sha(repo_cache, ref)
+        work_dir = repo_cache / ".cinch_export" / commit_sha
+        work_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            subprocess.run(
+                ["git", "--work-tree", str(work_dir), "checkout", commit_sha, "--", "."],
+                cwd=str(repo_cache),
+                capture_output=True,
+                check=False,
+            )
+        except Exception:
+            pass
+        target_path = work_dir
+        source = url
+    else:
+        target_path = Path(target_str).resolve()
+        source = args.source or str(target_path)
+        ref = args.ref
+        commit_sha = args.commit
+
+    locked_commit = None
+    for entry in lock_data.get("packages", {}).values():
+        if entry.get("source") == source:
+            locked_commit = entry.get("commit")
+            break
+
+    report = evaluate_trust_policy(
+        target_path,
+        policy,
+        source=source,
+        ref=ref,
+        commit=commit_sha,
+        locked_commit=locked_commit,
+        reviewed=getattr(args, "reviewed", False),
+        enforce=getattr(args, "enforce", False) or policy.enforce,
+    )
+
+    if getattr(args, "json", False):
+        print(json.dumps(report.to_dict(), indent=2))
+    else:
+        print(report.format_human())
+
+    if (getattr(args, "enforce", False) or policy.enforce) and not report.allowed:
+        return 1
     return 0
 
 

@@ -303,6 +303,9 @@ def install_package(
     skill_name: str | None = None,
     force: bool = False,
     cache_dir: Path | None = None,
+    policy: Any | None = None,
+    enforce_policy: bool = False,
+    reviewed: bool = False,
 ) -> list[PackageResult]:
     """Install remote skills from git repository into .skills/vendor/<name>/."""
     project_root = Path(project).resolve()
@@ -358,11 +361,42 @@ def install_package(
     else:
         selected = discovered
 
-    vendor_root = project_root / ".skills" / "vendor"
-    vendor_root.mkdir(parents=True, exist_ok=True)
-
     lockfile_path = project_root / "cinch.lock"
     lock_data = load_lockfile(lockfile_path)
+
+    # Evaluate trust policy before writing any files
+    from cinch.policy import evaluate_trust_policy, load_policy
+
+    active_policy = policy or load_policy(start_dir=project_root)
+    if active_policy:
+        locked_commit = None
+        for entry in lock_data.get("packages", {}).values():
+            if entry.get("source") == url:
+                locked_commit = entry.get("commit")
+                break
+
+        decision = evaluate_trust_policy(
+            work_dir,
+            active_policy,
+            source=url,
+            ref=ref,
+            commit=commit_sha,
+            locked_commit=locked_commit,
+            reviewed=reviewed,
+            enforce=enforce_policy or active_policy.enforce,
+        )
+        if (enforce_policy or active_policy.enforce) and not decision.allowed:
+            viol_text = "\n".join(f"  - {v}" for v in decision.violations)
+            raise CinchError(
+                f"Installation rejected by trust policy for '{source}':\n{viol_text}\n\n"
+                f"Review with 'cinch audit {source}' or pass --reviewed / adjust policy."
+            )
+        elif decision.violations:
+            for v in decision.violations:
+                print(f"[cinch warning] Trust policy advisory: {v}")
+
+    vendor_root = project_root / ".skills" / "vendor"
+    vendor_root.mkdir(parents=True, exist_ok=True)
 
     results: list[PackageResult] = []
 
