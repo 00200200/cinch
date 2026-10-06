@@ -14,6 +14,7 @@ import os
 import re
 import shutil
 import subprocess
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
@@ -61,26 +62,30 @@ def parse_package_source(source: str) -> tuple[str, str | None]:
     if not ref:
         ref = None
 
-    # Resolve URL format
-    if raw_url.startswith("gh:"):
-        slug = raw_url[3:].strip("/")
-        return f"https://github.com/{slug}.git", ref
-
-    if raw_url.startswith("github.com/"):
-        slug = raw_url[11:].strip("/")
-        return f"https://github.com/{slug}.git", ref
-
-    if raw_url.startswith(("http://", "https://")):
-        url = raw_url if raw_url.endswith(".git") else f"{raw_url}.git"
-        return url, ref
-
-    if raw_url.startswith(("git@", "ssh://", "file://")):
-        return raw_url, ref
-
     # Check if it looks like a local filesystem directory or path
     local_path = Path(raw_url).expanduser()
     if local_path.exists() or raw_url.startswith(("/", "./", "../", "~")):
         return str(local_path.resolve()), ref
+
+    if raw_url.startswith(("git@", "ssh://", "file://")):
+        return raw_url, ref
+
+    if raw_url.startswith("gh:"):
+        slug = raw_url[3:].strip("/")
+        return f"https://github.com/{slug}.git", ref
+
+    # Parse and normalize host-prefixed sources and web URLs
+    url_candidate = raw_url if "://" in raw_url else f"https://{raw_url}"
+    parsed = urllib.parse.urlsplit(url_candidate)
+    if parsed.netloc == "github.com":
+        slug = parsed.path.strip("/")
+        if slug and not slug.endswith(".git"):
+            slug = f"{slug}.git"
+        return f"https://github.com/{slug}", ref
+
+    if raw_url.startswith(("http://", "https://")):
+        url = raw_url if raw_url.endswith(".git") else f"{raw_url}.git"
+        return url, ref
 
     # Shorthand owner/repo pattern
     if re.match(r"^[\w.-]+/[\w.-]+$", raw_url):
