@@ -60,14 +60,160 @@ class EvalSuiteResult:
         return sum(1 for r in self.results if not r.passed)
 
 
+def _parse_simple_yaml(text: str) -> dict[str, Any]:
+    """Zero-dependency fallback parser for eval spec YAML format."""
+    lines: list[tuple[int, str]] = []
+    for raw in text.splitlines():
+        code = raw.split("#")[0] if "#" in raw else raw
+        if not code.strip():
+            continue
+        indent = len(code) - len(code.lstrip(" "))
+        lines.append((indent, code.strip()))
+
+    if not lines:
+        return {}
+
+    def parse_scalar(val: str) -> Any:
+        val = val.strip()
+        if not val:
+            return ""
+        if (val.startswith('"') and val.endswith('"')) or (
+            val.startswith("'") and val.endswith("'")
+        ):
+            return val[1:-1]
+        lowered = val.lower()
+        if lowered == "true":
+            return True
+        if lowered == "false":
+            return False
+        if lowered in ("null", "~"):
+            return None
+        if val.isdigit() or (val.startswith("-") and val[1:].isdigit()):
+            return int(val)
+        try:
+            return float(val)
+        except ValueError:
+            pass
+        if val.startswith("[") and val.endswith("]"):
+            inner = val[1:-1].strip()
+            if not inner:
+                return []
+            return [parse_scalar(p.strip()) for p in inner.split(",") if p.strip()]
+        if val.startswith("{") and val.endswith("}"):
+            inner = val[1:-1].strip()
+            if not inner:
+                return {}
+            out: dict[str, Any] = {}
+            for part in inner.split(","):
+                if ":" in part:
+                    k, v = part.split(":", 1)
+                    out[parse_scalar(k)] = parse_scalar(v)
+            return out
+        return val
+
+    def parse_block(idx: int, base_indent: int) -> tuple[Any, int]:
+        if idx >= len(lines):
+            return {}, idx
+
+        _, first_line = lines[idx]
+        is_list = first_line.startswith("- ") or first_line == "-"
+
+        if is_list:
+            res_list: list[Any] = []
+            while idx < len(lines):
+                cur_indent, cur_line = lines[idx]
+                if cur_indent < base_indent:
+                    break
+                if cur_indent == base_indent and (cur_line.startswith("- ") or cur_line == "-"):
+                    item_content = cur_line[1:].strip()
+                    idx += 1
+                    if not item_content:
+                        if idx < len(lines) and lines[idx][0] > cur_indent:
+                            sub_val, idx = parse_block(idx, lines[idx][0])
+                            res_list.append(sub_val)
+                        else:
+                            res_list.append(None)
+                    elif ":" in item_content and not (
+                        item_content.startswith("{") or item_content.startswith("[")
+                    ):
+                        k, v = item_content.split(":", 1)
+                        k = k.strip()
+                        v = v.strip()
+                        d: dict[str, Any] = {}
+                        if v:
+                            d[k] = parse_scalar(v)
+                        else:
+                            if idx < len(lines) and lines[idx][0] > cur_indent:
+                                d[k], idx = parse_block(idx, lines[idx][0])
+                            else:
+                                d[k] = None
+                        dict_indent = cur_indent + 2
+                        while idx < len(lines):
+                            nxt_indent, nxt_line = lines[idx]
+                            if (
+                                nxt_indent < dict_indent
+                                or nxt_line.startswith("- ")
+                                or nxt_line == "-"
+                            ):
+                                break
+                            if ":" in nxt_line:
+                                nk, nv = nxt_line.split(":", 1)
+                                nk = nk.strip()
+                                nv = nv.strip()
+                                idx += 1
+                                if nv:
+                                    d[nk] = parse_scalar(nv)
+                                else:
+                                    if idx < len(lines) and lines[idx][0] > nxt_indent:
+                                        d[nk], idx = parse_block(idx, lines[idx][0])
+                                    else:
+                                        d[nk] = None
+                            else:
+                                idx += 1
+                        res_list.append(d)
+                    else:
+                        res_list.append(parse_scalar(item_content))
+                else:
+                    break
+            return res_list, idx
+        else:
+            res_dict: dict[str, Any] = {}
+            while idx < len(lines):
+                cur_indent, cur_line = lines[idx]
+                if cur_indent < base_indent:
+                    break
+                if cur_indent == base_indent:
+                    if ":" in cur_line:
+                        k, v = cur_line.split(":", 1)
+                        k = k.strip()
+                        v = v.strip()
+                        idx += 1
+                        if v:
+                            res_dict[k] = parse_scalar(v)
+                        else:
+                            if idx < len(lines) and lines[idx][0] > cur_indent:
+                                res_dict[k], idx = parse_block(idx, lines[idx][0])
+                            else:
+                                res_dict[k] = {}
+                    else:
+                        idx += 1
+                else:
+                    break
+            return res_dict, idx
+
+    res, _ = parse_block(0, lines[0][0])
+    return res if isinstance(res, dict) else {}
+
+
 def load_eval_spec(path: Path) -> dict[str, Any]:
     """Parse an eval spec from JSON or YAML file."""
     content = path.read_text(encoding="utf-8")
     suffix = path.suffix.lower()
     if suffix in (".yml", ".yaml"):
-        if yaml is None:
-            raise ValueError(f"PyYAML is required to parse YAML eval spec: {path}")
-        data = yaml.safe_load(content)
+        if yaml is not None:
+            data = yaml.safe_load(content)
+        else:
+            data = _parse_simple_yaml(content)
     elif suffix == ".json":
         data = json.loads(content)
     else:
@@ -78,7 +224,7 @@ def load_eval_spec(path: Path) -> dict[str, Any]:
             if yaml is not None:
                 data = yaml.safe_load(content)
             else:
-                raise ValueError(f"Unsupported eval file format: {path}") from None
+                data = _parse_simple_yaml(content)
 
     if not isinstance(data, dict):
         raise ValueError(f"Eval spec must be a dictionary: {path}")
