@@ -408,6 +408,33 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Exclude bundled starter skills",
     )
+
+    eval_cmd = commands.add_parser(
+        "eval",
+        help="Run automated skill assertion & prompt regression tests",
+        parents=[shared],
+    )
+    eval_cmd.add_argument(
+        "skill",
+        nargs="?",
+        default=None,
+        help="Specific skill name to evaluate (default: all discovered evals)",
+    )
+    eval_cmd.add_argument(
+        "--eval-dir",
+        default="evals",
+        help="Directory containing eval test specs (default: evals)",
+    )
+    eval_cmd.add_argument(
+        "--output-junit",
+        default=None,
+        help="Path to write JUnit XML test report",
+    )
+    eval_cmd.add_argument(
+        "--project",
+        default=".",
+        help="Project directory (default: cwd)",
+    )
     return parser
 
 
@@ -441,6 +468,8 @@ def main(argv: list[str] | None = None) -> int:
             return _mcp_server(args)
         if args.command == "export":
             return _export(args)
+        if args.command == "eval":
+            return _eval(args)
         return _init(args)
     except CinchError as exc:
         print(f"cinch: {exc}", file=sys.stderr)
@@ -466,6 +495,27 @@ def _export(args: argparse.Namespace) -> int:
     else:
         print(f"Exported HTML catalog to {output}")
     return 0
+
+
+def _eval(args: argparse.Namespace) -> int:
+    from cinch.eval import generate_junit_xml, print_eval_summary, run_evals
+
+    project = Path(args.project).resolve()
+    eval_dir = (project / args.eval_dir).resolve()
+    suite = run_evals(project, eval_dir, skill_name=args.skill)
+
+    if suite.total == 0:
+        console.print(f"[yellow]No eval specs found in {eval_dir}[/yellow]")
+        return 1 if args.skill else 0
+
+    if args.output_junit:
+        junit_path = Path(args.output_junit)
+        junit_path.parent.mkdir(parents=True, exist_ok=True)
+        junit_xml = generate_junit_xml(suite)
+        junit_path.write_text(junit_xml, encoding="utf-8")
+
+    print_eval_summary(suite, console=console)
+    return 1 if suite.failed > 0 else 0
 
 
 def _mcp_server(args: argparse.Namespace) -> int:
