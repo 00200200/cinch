@@ -58,6 +58,8 @@ def collect_inventory(
     for name in (".mcp.json", ".cursor/mcp.json"):
         _mcp_in(add, project / name)
 
+    _skills_in(add, "skill", project / ".skills")
+
     for root in extra_roots:
         _skills_in(add, "skill", root)
         _skills_in(add, "skill", root / "skills")

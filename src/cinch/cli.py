@@ -435,6 +435,63 @@ def build_parser() -> argparse.ArgumentParser:
         default=".",
         help="Project directory (default: cwd)",
     )
+
+    install_cmd = commands.add_parser(
+        "install",
+        help="Install remote skill package from Git repository",
+        parents=[shared],
+    )
+    install_cmd.add_argument(
+        "package",
+        help="Git repo URL or shorthand (e.g. gh:owner/repo@v1.0)",
+    )
+    install_cmd.add_argument(
+        "--project",
+        default=".",
+        help="Project directory (default: cwd)",
+    )
+    install_cmd.add_argument(
+        "--skill",
+        default=None,
+        help="Specific skill name to install if repo contains multiple",
+    )
+    install_cmd.add_argument(
+        "--force",
+        action="store_true",
+        help="Force reinstallation if skill already exists",
+    )
+
+    update_cmd = commands.add_parser(
+        "update",
+        help="Update installed remote skill packages",
+        parents=[shared],
+    )
+    update_cmd.add_argument(
+        "package",
+        nargs="?",
+        default=None,
+        help="Specific package name to update (default: all)",
+    )
+    update_cmd.add_argument(
+        "--project",
+        default=".",
+        help="Project directory (default: cwd)",
+    )
+
+    uninstall_cmd = commands.add_parser(
+        "uninstall",
+        help="Uninstall a vendored skill package",
+        parents=[shared],
+    )
+    uninstall_cmd.add_argument(
+        "package",
+        help="Name of skill package to uninstall",
+    )
+    uninstall_cmd.add_argument(
+        "--project",
+        default=".",
+        help="Project directory (default: cwd)",
+    )
     return parser
 
 
@@ -470,10 +527,56 @@ def main(argv: list[str] | None = None) -> int:
             return _export(args)
         if args.command == "eval":
             return _eval(args)
+        if args.command == "install":
+            return _install(args)
+        if args.command == "update":
+            return _update(args)
+        if args.command == "uninstall":
+            return _uninstall(args)
         return _init(args)
     except CinchError as exc:
         print(f"cinch: {exc}", file=sys.stderr)
         return 2
+
+
+def _install(args: argparse.Namespace) -> int:
+    from cinch.package import install_package
+
+    results = install_package(
+        args.package,
+        project=Path(args.project).resolve(),
+        skill_name=args.skill,
+        force=args.force,
+    )
+    for res in results:
+        ref_str = f" @ {res.ref}" if res.ref else ""
+        print(f"Installed {res.name} from {res.source}{ref_str} -> {res.vendor_path}")
+        print(f"  commit:   {res.commit[:8]}")
+        print(f"  checksum: {res.checksum}")
+    return 0
+
+
+def _update(args: argparse.Namespace) -> int:
+    from cinch.package import update_package
+
+    results = update_package(
+        args.package,
+        project=Path(args.project).resolve(),
+    )
+    for res in results:
+        print(f"Updated {res.name} -> {res.commit[:8]} ({res.checksum})")
+    return 0
+
+
+def _uninstall(args: argparse.Namespace) -> int:
+    from cinch.package import uninstall_package
+
+    uninstall_package(
+        args.package,
+        project=Path(args.project).resolve(),
+    )
+    print(f"Uninstalled package '{args.package}'")
+    return 0
 
 
 def _export(args: argparse.Namespace) -> int:
