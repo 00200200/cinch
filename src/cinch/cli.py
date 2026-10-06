@@ -347,6 +347,33 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="KEY=VALUE",
         help="Override a skill parameter (repeatable); wins over CINCH_PARAM_* env vars",
     )
+
+    mcp_cmd = commands.add_parser(
+        "mcp-server",
+        help="Run lightweight FastMCP prompt server over STDIO",
+        parents=[shared],
+    )
+    mcp_cmd.add_argument(
+        "--root",
+        dest="project_root",
+        default=".",
+        metavar="DIR",
+        help="Project directory containing skills (default: .)",
+    )
+    mcp_cmd.add_argument(
+        "--from",
+        "--from-dir",
+        dest="extra_roots",
+        action="append",
+        default=[],
+        metavar="DIR",
+        help="Extra skill directory to expose as MCP prompts",
+    )
+    mcp_cmd.add_argument(
+        "--no-starter",
+        action="store_true",
+        help="Do not include bundled starter skills",
+    )
     return parser
 
 
@@ -376,10 +403,23 @@ def main(argv: list[str] | None = None) -> int:
             return _import(args)
         if args.command == "watch":
             return _watch(args)
+        if args.command == "mcp-server":
+            return _mcp_server(args)
         return _init(args)
     except CinchError as exc:
         print(f"cinch: {exc}", file=sys.stderr)
         return 2
+
+
+def _mcp_server(args: argparse.Namespace) -> int:
+    from cinch.mcp import McpPromptServer
+
+    server = McpPromptServer(
+        project_root=Path(args.project_root),
+        extra_roots=tuple(Path(p) for p in args.extra_roots),
+        include_starter=not args.no_starter,
+    )
+    return server.run_stdio()
 
 
 def _home(args: argparse.Namespace) -> Path:
