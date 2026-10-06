@@ -383,6 +383,27 @@ Cinch never performs direct, naive file copying between disparate tools. Instead
 
 ---
 
+## 🔐 Trust Policy & Provenance Audit
+
+Cinch features a trust policy and provenance framework configured via `.cinchpolicy.yml`:
+
+```bash
+# Audit a local folder or remote skill statically
+cinch audit ./my-skills
+
+# Output machine-readable JSON for CI pipelines
+cinch audit gh:my-org/skills@v1.0.0 --json
+
+# Enforce policies on installation
+cinch install gh:my-org/skills@v1.0.0 --enforce-policy
+```
+
+- Inspects licenses, executable scripts, and unsafe path/symlink escapes **without executing repository code**.
+- Supports source allow/deny lists, immutable ref enforcement (`v1.0.0` or commit SHA), and human review gates for scripts (`--reviewed`).
+- Read the full [Trust Policy Guide](docs/trust-policy.md).
+
+---
+
 ## 🛡️ Trust & Safety Guarantees
 
 - 🔒 **100% Local-First:** Runs entirely on your local machine. No telemetry, no cloud dependencies, no network requests.
