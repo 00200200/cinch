@@ -374,6 +374,40 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not include bundled starter skills",
     )
+
+    export_cmd = commands.add_parser(
+        "export",
+        help="Export skill catalog as standalone documentation artifact",
+        parents=[shared],
+    )
+    export_cmd.add_argument(
+        "project",
+        nargs="?",
+        default=".",
+        help="Project directory (default: cwd)",
+    )
+    export_cmd.add_argument(
+        "--format",
+        choices=["html"],
+        default="html",
+        help="Export format (default: html)",
+    )
+    export_cmd.add_argument(
+        "-o",
+        "--output",
+        default=None,
+        help="Output HTML file path (default: stdout)",
+    )
+    export_cmd.add_argument(
+        "--title",
+        default=None,
+        help="Catalog page title",
+    )
+    export_cmd.add_argument(
+        "--no-starter",
+        action="store_true",
+        help="Exclude bundled starter skills",
+    )
     return parser
 
 
@@ -405,10 +439,33 @@ def main(argv: list[str] | None = None) -> int:
             return _watch(args)
         if args.command == "mcp-server":
             return _mcp_server(args)
+        if args.command == "export":
+            return _export(args)
         return _init(args)
     except CinchError as exc:
         print(f"cinch: {exc}", file=sys.stderr)
         return 2
+
+
+def _export(args: argparse.Namespace) -> int:
+    from cinch.html import export_html_catalog
+
+    project = Path(args.project).resolve()
+    title = args.title or f"{project.name} Skills Catalog"
+    output = args.output
+
+    html_content = export_html_catalog(
+        project_root=project,
+        output_path=output,
+        include_starter=not args.no_starter,
+        title=title,
+    )
+
+    if not output:
+        sys.stdout.write(html_content)
+    else:
+        print(f"Exported HTML catalog to {output}")
+    return 0
 
 
 def _mcp_server(args: argparse.Namespace) -> int:
