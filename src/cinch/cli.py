@@ -447,6 +447,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="Project directory (default: cwd)",
     )
 
+    bench_cmd = commands.add_parser(
+        "bench",
+        help="Run multi-model token cost & footprint benchmark",
+        parents=[shared],
+    )
+    bench_cmd.add_argument(
+        "skill",
+        nargs="?",
+        default=None,
+        help="Specific skill name to benchmark (default: all discovered skills)",
+    )
+    bench_cmd.add_argument(
+        "--tokens",
+        action="store_true",
+        default=False,
+        help="Display token counts only (suppress dollar cost calculations)",
+    )
+    bench_cmd.add_argument(
+        "--pricing",
+        default=None,
+        help="Path to JSON file specifying custom pricing per 1M tokens",
+    )
+    bench_cmd.add_argument(
+        "--budget",
+        type=int,
+        default=800,
+        help="Token budget limit per skill (default: 800)",
+    )
+    bench_cmd.add_argument(
+        "--json",
+        dest="json_output",
+        default=None,
+        help="Path to export benchmark metrics as structured JSON",
+    )
+    bench_cmd.add_argument(
+        "--project",
+        default=".",
+        help="Project directory (default: cwd)",
+    )
+
     install_cmd = commands.add_parser(
         "install",
         help="Install remote skill package from Git repository",
@@ -604,6 +644,8 @@ def main(argv: list[str] | None = None) -> int:
             return _export(args)
         if args.command == "eval":
             return _eval(args)
+        if args.command == "bench":
+            return _bench(args)
         if args.command == "install":
             return _install(args)
         if args.command == "update":
@@ -776,6 +818,26 @@ def _eval(args: argparse.Namespace) -> int:
 
     print_eval_summary(suite, console=console)
     return 1 if suite.failed > 0 else 0
+
+
+def _bench(args: argparse.Namespace) -> int:
+    from cinch.bench import print_benchmark_summary, run_benchmark
+
+    project = Path(args.project).resolve()
+    suite = run_benchmark(
+        project_root=project,
+        budget=args.budget,
+        pricing_path=args.pricing,
+        skill_name=args.skill,
+    )
+
+    if args.json_output:
+        json_path = Path(args.json_output)
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(json.dumps(suite.to_dict(), indent=2), encoding="utf-8")
+
+    print_benchmark_summary(suite, console=console, tokens_only=args.tokens)
+    return 1 if not suite.passed else 0
 
 
 def _mcp_server(args: argparse.Namespace) -> int:
