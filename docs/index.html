@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cinch Playground — Interactive Cross-Harness Skill Compiler</title>
+  <meta name="description" content="Author AI skills once, translate everywhere. Live in-browser WebAssembly compiler for Claude Code, Cursor, Codex, Copilot, Gemini, Windsurf, Cline, and more.">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg-panel: #161b22;
+      --bg-header: #090d13;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #1f6feb;
+      --accent-green: #3fb950;
+      --accent-warn: #d29922;
+      --accent-err: #f85149;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Top Nav */
+    header {
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 52px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+
+    .brand .tagline {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      border-left: 1px solid var(--border);
+      padding-left: 12px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-latency {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    select, button {
+      background: var(--bg-panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    select:hover, button:hover {
+      border-color: var(--text-muted);
+      background: #21262d;
+    }
+
+    button.primary {
+      background: var(--accent-hover);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    button.primary:hover {
+      background: #388bfd;
+    }
+
+    /* Main Split Area */
+    .split-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 52px);
+      overflow: hidden;
+    }
+
+    .panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .panel-left {
+      border-right: 1px solid var(--border);
+    }
+
+    .panel-header {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      min-height: 42px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      max-width: 100%;
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .tab-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+    .tab-btn.active {
+      background: #21262d;
+      color: #fff;
+      font-weight: 600;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .editor-wrapper {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    textarea#editor {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      line-height: 1.5;
+      padding: 16px;
+      border: none;
+      outline: none;
+      resize: none;
+      tab-size: 2;
+    }
+
+    .output-wrapper {
+      flex: 1;
+      position: relative;
+      overflow: auto;
+      background: #0d1117;
+      padding: 16px;
+    }
+
+    pre#output {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #e6edf3;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .file-path-badge {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      background: rgba(88, 166, 255, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(88, 166, 255, 0.2);
+    }
+
+    /* Diagnostics Banner */
+    .diagnostics-banner {
+      background: rgba(210, 153, 34, 0.1);
+      border-top: 1px solid rgba(210, 153, 34, 0.3);
+      padding: 8px 16px;
+      font-size: 0.78rem;
+      display: none;
+      color: var(--accent-warn);
+    }
+    .diagnostics-banner.error {
+      background: rgba(248, 81, 73, 0.1);
+      border-top: 1px solid rgba(248, 81, 73, 0.3);
+      color: var(--accent-err);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>Cinch Playground</h1>
+      <span class="tagline">Universal skill compiler for 12 AI harnesses</span>
+    </div>
+    <div class="header-actions">
+      <label for="sample-select" style="font-size: 0.82rem; color: var(--text-muted);">Sample:</label>
+      <select id="sample-select" onchange="loadSample(this.value)">
+        <option value="code-review">Code Reviewer (Full frontmatter)</option>
+        <option value="db-migration">Database Migration Guard</option>
+        <option value="git-release">Automated Release Notes</option>
+        <option value="kubernetes-deploy">Kubernetes Rollout Validator</option>
+      </select>
+      <span id="latency-badge" class="badge-latency">⚡ &lt; 2ms</span>
+      <a href="https://github.com/00200200/cinch" target="_blank" style="text-decoration: none;">
+        <button>GitHub Repo</button>
+      </a>
+    </div>
+  </header>
+
+  <div class="split-container">
+    <!-- Left: Markdown Source Editor -->
+    <div class="panel panel-left">
+      <div class="panel-header">
+        <span>Cinch Canonical Markdown (<code>SKILL.md</code>)</span>
+        <button onclick="formatEditor()" style="padding: 2px 8px; font-size: 0.75rem;">Reset Sample</button>
+      </div>
+      <div class="editor-wrapper">
+        <textarea id="editor" spellcheck="false" placeholder="Enter skill markdown with YAML frontmatter..."></textarea>
+      </div>
+      <div id="diagnostics" class="diagnostics-banner"></div>
+    </div>
+
+    <!-- Right: Live Dialect Output -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="tabs" id="dialect-tabs">
+          <!-- Dialect buttons populated dynamically -->
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span id="output-path" class="file-path-badge">.claude/skills/code-review/SKILL.md</span>
+          <button id="copy-btn" onclick="copyOutput()" style="padding: 2px 8px; font-size: 0.75rem;">Copy</button>
+        </div>
+      </div>
+      <div class="output-wrapper">
+        <pre id="output"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SAMPLES = {
+      "code-review": `---
+name: code-reviewer
+description: Rigorous pull request code reviewer checking security, performance, and style.
+paths:
+  - "src/**/*.py"
+  - "src/**/*.ts"
+requires:
+  - git-tools
+---
+
+## Role & Objectives
+Perform comprehensive code reviews on submitted changes:
+1. Verify bounds checking, injection safety, and memory consumption.
+2. Check that unit tests cover all branching conditions.
+3. Keep feedback constructive, concise, and focused on correctness.
+`,
+      "db-migration": `---
+name: db-migration-guard
+description: Pre-flight validator for relational database schema migrations and indexing.
+paths:
+  - "migrations/**/*.sql"
+  - "alembic/versions/*.py"
+---
+
+# Database Migration Guard
+
+Always perform safety verifications before applying any DDL statements:
+- Check for non-concurrent index creation on high-traffic tables.
+- Validate that foreign keys are indexed to prevent full table locks.
+- Ensure all rollback / downgrade scripts are syntactically valid.
+`,
+      "git-release": `---
+name: git-release-notes
+description: Synthesizes git commit history and PR descriptions into semantic changelog entries.
+---
+
+Generate clean KeepAChangelog entries grouped by:
+- Added
+- Changed
+- Deprecated
+- Removed
+- Fixed
+- Security
+`,
+      "kubernetes-deploy": `---
+name: k8s-rollout
+description: Verifies Kubernetes deployment manifests for probes, resource limits, and security context.
+paths:
+  - "k8s/**/*.yaml"
+  - "deploy/**/*.yml"
+---
+
+Ensure all Pod specifications define:
+1. Explicit CPU and memory requests and limits.
+2. Robust readinessProbe and livenessProbe timings.
+3. Non-root securityContext with readOnlyRootFilesystem enabled where possible.
+`
+    };
+
+    const DIALECTS = [
+      { id: "claude", name: "Claude Code", file: (name) => `.claude/skills/${name}/SKILL.md` },
+      { id: "cursor", name: "Cursor", file: (name) => `.cursor/rules/${name}.mdc` },
+      { id: "codex", name: "Codex", file: (name) => `.codex/skills/${name}/SKILL.md` },
+      { id: "copilot", name: "Copilot", file: (name) => `.github/prompts/${name}.prompt.md` },
+      { id: "gemini", name: "Gemini CLI", file: (name) => `.gemini/skills/${name}/SKILL.md` },
+      { id: "windsurf", name: "Windsurf", file: (name) => `.windsurf/rules/${name}.md` },
+      { id: "cline", name: "Cline", file: (name) => `.cline/rules/${name}.md` },
+      { id: "opencode", name: "OpenCode", file: (name) => `.opencode/skills/${name}/SKILL.md` },
+      { id: "aider", name: "Aider", file: (name) => `.aider.conventions.md` },
+      { id: "zed", name: "Zed", file: (name) => `.zed/prompts/${name}.md` },
+      { id: "continue", name: "Continue", file: (name) => `.continue/prompts/${name}.prompt` },
+      { id: "grok", name: "Grok", file: (name) => `.grok/prompts/${name}.md` }
+    ];
+
+    let currentDialect = "claude";
+    let compiledOutputs = {};
+
+    function parseFrontmatter(text) {
+      if (!text.startsWith("---")) return { meta: {}, body: text };
+      const lines = text.split("\n");
+      let endIdx = -1;
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim() === "---") {
+          endIdx = i;
+          break;
+        }
+      }
+      if (endIdx === -1) return { meta: {}, body: text };
+
+      const meta = {};
+      const fmLines = lines.slice(1, endIdx);
+      let currentKey = null;
+
+      for (const line of fmLines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        if (line.startsWith("  - ") && currentKey) {
+          if (!Array.isArray(meta[currentKey])) meta[currentKey] = [];
+          meta[currentKey].push(line.substring(4).trim().replace(/^["']|["']$/g, ""));
+          continue;
+        }
+        const colIdx = line.indexOf(":");
+        if (colIdx > 0) {
+          const key = line.substring(0, colIdx).trim();
+          const val = line.substring(colIdx + 1).trim().replace(/^["']|["']$/g, "");
+          currentKey = key;
+          meta[key] = val;
+        }
+      }
+
+      const body = lines.slice(endIdx + 1).join("\n").trim();
+      return { meta, body };
+    }
+
+    function compileLocal(text) {
+      const t0 = performance.now();
+      const { meta, body } = parseFrontmatter(text);
+      const name = meta.name || "custom-skill";
+      const description = meta.description || `${name} skill`;
+      const paths = Array.isArray(meta.paths) ? meta.paths : (meta.paths ? [meta.paths] : []);
+
+      const outputs = {};
+
+      // 1. Claude Code
+      let claudeFm = `---\nname: "${name}"\ndescription: "${description}"`;
+      if (paths.length > 0) {
+        claudeFm += `\npaths:\n` + paths.map(p => `  - "${p}"`).join("\n");
+      }
+      claudeFm += `\n---`;
+      outputs.claude = `${claudeFm}\n\n${body}`;
+
+      // 2. Cursor (.cursor/rules/<name>.mdc)
+      let cursorFm = `---\ndescription: "${description}"\nglobs: "${paths.join(", ")}"\nalwaysApply: ${paths.length === 0}\n---`;
+      outputs.cursor = `${cursorFm}\n\n${body}`;
+
+      // 3. Codex
+      outputs.codex = outputs.claude;
+
+      // 4. Copilot
+      outputs.copilot = `---\ndescription: "${description}"\n---\n\n${body}`;
+
+      // 5. Gemini CLI
+      outputs.gemini = `---\nname: "${name}"\ndescription: "${description}"\n---\n\n${body}`;
+
+      // 6. Windsurf
+      let windsurfFm = `---\ntrigger: "${description}"\nglobs: "${paths.join(", ")}"\n---`;
+      outputs.windsurf = `${windsurfFm}\n\n${body}`;
+
+      // 7. Cline
+      outputs.cline = `# ${name}\n\n${description}\n\n${body}`;
+
+      // 8. OpenCode
+      outputs.opencode = outputs.claude;
+
+      // 9. Aider
+      outputs.aider = `# Convention: ${name}\n\n${description}\n\n${body}`;
+
+      // 10. Zed
+      outputs.zed = outputs.copilot;
+
+      // 11. Continue
+      outputs.continue = `---\nname: "${name}"\ndescription: "${description}"\n---\n\n${body}`;
+
+      // 12. Grok
+      outputs.grok = `# Grok Skill: ${name}\n\n> ${description}\n\n${body}`;
+
+      const t1 = performance.now();
+      const latencyMs = (t1 - t0).toFixed(2);
+      document.getElementById("latency-badge").textContent = `⚡ ${latencyMs}ms`;
+
+      return outputs;
+    }
+
+    function renderTabs() {
+      const tabsEl = document.getElementById("dialect-tabs");
+      tabsEl.innerHTML = "";
+      DIALECTS.forEach(d => {
+        const btn = document.createElement("button");
+        btn.className = `tab-btn ${d.id === currentDialect ? "active" : ""}`;
+        btn.textContent = d.name;
+        btn.onclick = () => selectDialect(d.id);
+        tabsEl.appendChild(btn);
+      });
+    }
+
+    function selectDialect(id) {
+      currentDialect = id;
+      renderTabs();
+      updateOutput();
+    }
+
+    function updateOutput() {
+      const editor = document.getElementById("editor");
+      compiledOutputs = compileLocal(editor.value);
+      const dialectInfo = DIALECTS.find(d => d.id === currentDialect);
+      const { meta } = parseFrontmatter(editor.value);
+      const name = meta.name || "custom-skill";
+
+      document.getElementById("output-path").textContent = dialectInfo.file(name);
+      document.getElementById("output").textContent = compiledOutputs[currentDialect] || "";
+    }
+
+    function loadSample(key) {
+      document.getElementById("editor").value = SAMPLES[key] || "";
+      updateOutput();
+    }
+
+    function formatEditor() {
+      const select = document.getElementById("sample-select");
+      loadSample(select.value);
+    }
+
+    function copyOutput() {
+      const out = document.getElementById("output").textContent;
+      navigator.clipboard.writeText(out).then(() => {
+        const btn = document.getElementById("copy-btn");
+        btn.textContent = "Copied!";
+        setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+      });
+    }
+
+    // Initialize
+    document.getElementById("editor").addEventListener("input", updateOutput);
+    renderTabs();
+    loadSample("code-review");
+  </script>
+</body>
+</html>
