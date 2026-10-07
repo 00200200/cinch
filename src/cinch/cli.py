@@ -375,6 +375,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not include bundled starter skills",
     )
 
+    lsp_cmd = commands.add_parser(
+        "lsp",
+        help="Run Language Server Protocol (LSP) server for skill frontmatter over STDIO",
+        parents=[shared],
+    )
+    lsp_cmd.add_argument(
+        "--strict",
+        action="store_true",
+        help="Report schema violations as errors instead of warnings",
+    )
+
     export_cmd = commands.add_parser(
         "export",
         help="Export skill catalog as standalone documentation artifact",
@@ -587,6 +598,8 @@ def main(argv: list[str] | None = None) -> int:
             return _watch(args)
         if args.command == "mcp-server":
             return _mcp_server(args)
+        if args.command == "lsp":
+            return _lsp(args)
         if args.command == "export":
             return _export(args)
         if args.command == "eval":
@@ -773,6 +786,13 @@ def _mcp_server(args: argparse.Namespace) -> int:
         extra_roots=tuple(Path(p) for p in args.extra_roots),
         include_starter=not args.no_starter,
     )
+    return server.run_stdio()
+
+
+def _lsp(args: argparse.Namespace) -> int:
+    from cinch.lsp import LspServer
+
+    server = LspServer(strict=getattr(args, "strict", False))
     return server.run_stdio()
 
 
