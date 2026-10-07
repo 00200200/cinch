@@ -58,6 +58,17 @@ def suggest_key(unknown: str, *, cutoff: float = 0.5) -> str | None:
         "apply_to": "applyTo",
         "apply-to": "applyTo",
         "licence": "license",
+        "compatibility": "applyTo",
+        "compat": "applyTo",
+        "variables": "parameters",
+        "vars": "parameters",
+        "variable": "parameters",
+        "param": "parameters",
+        "params": "parameters",
+        "require": "requires",
+        "dep": "requires",
+        "deps": "requires",
+        "dependencies": "requires",
     }
     raw = unknown.strip().lower()
     if raw in aliases:
