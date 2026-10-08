@@ -487,6 +487,45 @@ def build_parser() -> argparse.ArgumentParser:
         help="Project directory (default: cwd)",
     )
 
+    bridge_cmd = commands.add_parser(
+        "bridge",
+        help="Bridge external schemas into Cinch skills",
+        parents=[shared],
+    )
+    bridge_subs = bridge_cmd.add_subparsers(dest="bridge_subcommand")
+    mcp_bridge = bridge_subs.add_parser(
+        "mcp",
+        help="Bridge MCP server tool manifests into documented skills",
+        parents=[shared],
+    )
+    mcp_bridge.add_argument(
+        "server_command",
+        nargs="*",
+        default=[],
+        help="Command to spawn the MCP server (e.g. npx -y @mcp/server)",
+    )
+    mcp_bridge.add_argument(
+        "--name",
+        default=None,
+        help="Server identifier name",
+    )
+    mcp_bridge.add_argument(
+        "--config",
+        default=None,
+        help="Path to MCP JSON configuration file",
+    )
+    mcp_bridge.add_argument(
+        "--out",
+        default=".skills",
+        help="Output directory for generated skills (default: .skills)",
+    )
+    mcp_bridge.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Preview generated skills without writing to disk",
+    )
+
     install_cmd = commands.add_parser(
         "install",
         help="Install remote skill package from Git repository",
@@ -646,6 +685,8 @@ def main(argv: list[str] | None = None) -> int:
             return _eval(args)
         if args.command == "bench":
             return _bench(args)
+        if args.command == "bridge":
+            return _bridge(args)
         if args.command == "install":
             return _install(args)
         if args.command == "update":
@@ -838,6 +879,35 @@ def _bench(args: argparse.Namespace) -> int:
 
     print_benchmark_summary(suite, console=console, tokens_only=args.tokens)
     return 1 if not suite.passed else 0
+
+
+def _bridge(args: argparse.Namespace) -> int:
+    from cinch.bridge import bridge_mcp_server
+
+    if getattr(args, "bridge_subcommand", None) != "mcp":
+        console.print("[yellow]Usage: cinch bridge mcp <command> [--config mcp.json][/yellow]")
+        return 1
+
+    cmd = " ".join(args.server_command) if getattr(args, "server_command", None) else None
+    results = bridge_mcp_server(
+        server_cmd=cmd,
+        server_name=args.name,
+        config_path=args.config,
+        output_dir=args.out,
+        dry_run=args.dry_run,
+    )
+
+    for res in results:
+        console.print(
+            f"[bold green]Bridged MCP server '{res.server}':[/bold green] "
+            f"{len(res.skills_generated)} skills generated"
+        )
+        for s in res.skills_generated:
+            console.print(f"  [cyan]+[/cyan] {s}")
+        if args.dry_run:
+            console.print("  [dim](dry-run: no files written to disk)[/dim]")
+
+    return 0
 
 
 def _mcp_server(args: argparse.Namespace) -> int:
