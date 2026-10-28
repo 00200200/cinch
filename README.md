@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="assets/banner.svg" alt="cinch — Universal agents and skills for every harness." width="100%" />
+  <h1>Cinch</h1>
 
-  <p><strong>Universal skills and agents for every AI harness. Author once, wire anywhere.</strong></p>
+  <p><strong>A Python CLI for adapting local skills, agents, and commands to supported AI coding tools.</strong></p>
 
   <p align="center">
     <a href="https://github.com/00200200/cinch/stargazers"><img src="https://img.shields.io/github/stars/00200200/cinch?style=social&label=Star%20Cinch" alt="GitHub stars"></a>
@@ -9,45 +9,45 @@
     <a href="https://github.com/00200200/cinch/actions/workflows/ci.yml"><img src="https://github.com/00200200/cinch/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
     <a href="https://codecov.io/gh/00200200/cinch"><img src="https://codecov.io/gh/00200200/cinch/graph/badge.svg" alt="codecov"></a>
     <a href="https://pypi.org/project/cinch-init/"><img src="https://img.shields.io/pypi/v/cinch-init.svg?color=2ee6d6" alt="PyPI"></a>
-    <img src="https://img.shields.io/badge/dialects-11%20supported-2ee6d6.svg" alt="11 Supported Harnesses">
+    <img src="https://img.shields.io/badge/targets-12%20adapters-2ee6d6.svg" alt="12 target adapters">
     <img src="https://img.shields.io/badge/astral-uv%20ready-4c8dff.svg" alt="UV Powered">
-    <img src="https://img.shields.io/badge/telemetry-zero%20%2F%20local--first-3fb950.svg" alt="100% Local First">
+    <img src="https://img.shields.io/badge/local-file%20translation-3fb950.svg" alt="Local file translation">
   </p>
 </div>
 
 <p align="center">
-  <img src="assets/demo.svg" alt="Cinch CLI animated terminal recording" width="850">
+  <img src="assets/demo.svg" alt="Animated illustration of the Cinch CLI" width="850">
   <br/>
-  <em>See Cinch inspect local inventory and wire skills across harnesses in milliseconds.</em>
+  <em>Illustration of local inventory discovery and translation to several target formats.</em>
 </p>
 
 ---
 
 ## 💡 Why Cinch?
 
-The AI coding assistant ecosystem is deeply fragmented. Every developer and team uses different tools:
+AI coding tools use different instruction formats. Cinch's adapters write to layouts such as:
 
-- **Claude Code** stores skills in `.claude/skills/<n>/SKILL.md`
-- **Cursor & Codex** standardize on `.agents/skills/<n>/SKILL.md`
-- **GitHub Copilot** expects `.github/instructions/<n>.instructions.md` with YAML `applyTo`
-- **Gemini CLI** requires commands in `.gemini/commands/<n>.toml` with raw `prompt` blocks
-- **Windsurf / Devin** parses `.devin/rules/<n>.md` with strict character limits
-- **Cline** reads `.clinerules/<n>.md`
-- **Aider** ignores unconfigured files and requires entries appended to `.aider.conf.yml`
-- **Continue.dev** expects `.continue/prompts/<n>.prompt` slash-command templates (and optional `customCommands` in `config.json`)
+- **Claude Code**: `.claude/skills/<n>/SKILL.md`
+- **Cursor & Codex**: `.agents/skills/<n>/SKILL.md`
+- **GitHub Copilot**: `.github/instructions/<n>.instructions.md` with YAML `applyTo`
+- **Gemini CLI**: `.gemini/commands/<n>.toml` with `prompt` blocks
+- **Windsurf**: `.devin/rules/<n>.md` with an adapter size limit
+- **Cline**: `.clinerules/<n>.md`
+- **Aider**: Markdown files plus `read` entries in `.aider.conf.yml`
+- **Continue**: `.continue/prompts/<n>.prompt` files and optional `customCommands` in an existing `config.json`
 
-Whenever you switch harnesses, try a new AI tool, or share custom workflows with your team, you're forced to manually rewrite prompt files, reformat frontmatter, and hunt down obscure config paths.
+Moving a workflow between tools can require changes to paths, frontmatter, and configuration.
 
-**Cinch is the universal translation bridge.** It scans your existing local skills and agents, translates them through native dialect adapters, and attaches them directly into any project workspace. No proprietary marketplaces, no redundant skill libraries—just one CLI to bring your favorite skills everywhere.
+**Cinch automates those file transformations for its registered adapters.** It scans local skills, agents, and commands, previews the generated files, and writes them into a project workspace. This is an experimental interoperability tool: output depends on the source format, adapter, and client version. Unsupported metadata may be omitted, and hooks are preserved only when source and target match. File translation does not guarantee equivalent agent behavior.
 
 ---
 
 ## ⚡ Quickstart
 
-### Claude Code + Cursor + Codex (most common)
+### Claude Code + Cursor + Codex
 
-Cursor and Codex share the same on-disk layout (`.agents/skills/`). Wire once and both
-read the skill; Claude Code gets its own `.claude/skills/` copy.
+Cinch's Cursor and Codex adapters share the same output layout (`.agents/skills/`).
+Selecting both writes that destination once; Claude Code gets a separate `.claude/skills/` copy.
 
 ```bash
 # From a checkout that has example skills (or point --from-dir at your own):
@@ -58,7 +58,7 @@ uvx cinch-init \
   --yes
 ```
 
-| Harness | Where the skill lands | Invoke |
+| Harness | Where the skill lands | Invocation example (client-dependent) |
 | :--- | :--- | :--- |
 | **Claude Code** | `.claude/skills/humanizer/SKILL.md` | `/humanizer` |
 | **Cursor** | `.agents/skills/humanizer/SKILL.md` | `/humanizer` |
@@ -84,9 +84,9 @@ Install globally with `pipx install cinch-init` or `pip install cinch-init`.
 
 ---
 
-## 🔄 One Skill, Every Dialect (The Rosetta Stone)
+## 🔄 Example Translations
 
-Author your workflow once in standard Markdown. Cinch translates it into each harness's native format on the fly.
+Author a workflow in Markdown with frontmatter. Cinch maps the supported fields and body into the selected adapter's output format.
 
 ### Source: `~/.claude/skills/humanizer/SKILL.md`
 ```markdown
@@ -101,7 +101,7 @@ paths:
 - Use active voice and concrete verbs.
 ```
 
-### Native Translations Generated by Cinch:
+### Translations Generated by Cinch:
 
 <details open>
 <summary><strong>Cursor & Codex</strong> (<code>.agents/skills/humanizer/SKILL.md</code>)</summary>
@@ -209,13 +209,16 @@ invokable: true
 
 ---
 
-## 🤝 Supported Harness Matrix
+## 🤝 Target Adapter Matrix
 
-Every mapping is backed by vendor documentation and verified through automated conformance tests.
+The current [adapter registry](src/cinch/adapters.py) contains these 12 targets.
+The [conformance fixtures](tests/conformance/) record vendor references, and local tests
+check generated files. These checks do not establish live-client discovery, execution,
+or compatibility with every client version.
 
 | Harness | Skill Destination | Frontmatter Schema | Notes / Standards |
 | :--- | :--- | :--- | :--- |
-| **Claude Code** | `.claude/skills/<n>/SKILL.md` | Verbatim passthrough | Native Anthropic skill format |
+| **Claude Code** | `.claude/skills/<n>/SKILL.md` | `name`, `description`, `paths`, source metadata | Skill frontmatter is re-rendered |
 | **Cursor** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `paths` | Shared with Codex (one write covers both) |
 | **Codex** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `paths` | Same path as Cursor; supports `disable-model-invocation` |
 | **GitHub Copilot** | `.github/instructions/<n>.instructions.md` | `applyTo`, `description` | Native Copilot instruction rules |
@@ -224,15 +227,15 @@ Every mapping is backed by vendor documentation and verified through automated c
 | **Cline** | `.clinerules/<n>.md` | `paths` | Clean markdown rule injection |
 | **OpenCode** | `.opencode/commands/<n>.md` | `description` | Native command configuration |
 | **Aider** | `.aider/<n>.md` | None (Markdown body) | Automatically merges `read:` in `.aider.conf.yml` |
-| **Zed** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `disable-model-invocation` | Shared with Cursor/Codex; commands become non-invocable skills |
+| **Zed** | `.agents/skills/<n>/SKILL.md` | `name`, `description`, `disable-model-invocation` | Shared with Cursor/Codex; commands disable model invocation |
 | **Continue** | `.continue/prompts/<n>.prompt` | `name`, `description`, `invokable` | Slash commands; merges `customCommands` into existing `.continue/config.json` |
 | **Grok** | `.grok/skills/<n>/SKILL.md` | `name`, `description`, `paths`, `when-to-use`, `allowed-tools` | xAI Grok Build/CLI; unsupported source frontmatter stripped |
 
 ### Continue
 
-Continue loads workspace prompt files from [`.continue/prompts/`](https://docs.continue.dev/customize/deep-dives/prompts).
-Cinch compiles each skill, agent, or command to `<name>.prompt` with `invokable: true` so it
-appears as a `/<name>` slash command in Chat, Plan, and Agent mode.
+Cinch's Continue adapter writes each skill, agent, or command to
+[`.continue/prompts/`](https://docs.continue.dev/customize/deep-dives/prompts) as
+`<name>.prompt` with `invokable: true`, intended for slash-command use in compatible clients.
 
 The prompt body preserves Handlebars context variables (`{{{ input }}}`, `{{{ current_file }}}`, …),
 upgrades bare `{{ var }}` tokens to the triple-brace form, and records Cinch `paths` as an HTML
@@ -246,17 +249,15 @@ uvx cinch-init --from-harness claude --harness continue --skills humanizer --yes
 
 ### Zed
 
-Zed's agent reads [Agent Skills](https://zed.dev/docs/ai/skills) from the same cross-vendor
-`.agents/skills/` layout Cinch already writes for Cursor and Codex:
+Cinch's Zed adapter targets the [Agent Skills](https://zed.dev/docs/ai/skills) layout
+also used by its Cursor and Codex adapters:
 
 - **Global:** `~/.agents/skills/<name>/SKILL.md`
 - **Project-local:** `<worktree>/.agents/skills/<name>/SKILL.md`
 
-Type `/` in the agent panel and pick the skill, or load it with an `@<skill>` mention. The
-Skills Manager opens with `cmd-alt-l` (macOS) / `ctrl-alt-l` (Linux/Windows). Project-local
-skills load only from a [trusted worktree](https://zed.dev/docs/ai/skills). A skill folder
-may also contain `scripts/`, `references/`, and `assets/`; Cinch copies those alongside the
-`SKILL.md` when the source ships them.
+A skill folder may also contain `scripts/`, `references/`, and `assets/`; Cinch copies
+those alongside `SKILL.md` when the source ships them. Check the linked Zed documentation
+for client discovery, invocation, and workspace trust requirements.
 
 Because Zed shares `.agents/skills/` with Cursor and Codex, a `--harness cursor,zed` run
 writes the file once (as Cursor's rendering, which includes `paths`) and reports Zed as
@@ -264,10 +265,10 @@ writes the file once (as Cursor's rendering, which includes `paths`) and reports
 
 ### Grok
 
-Grok Build / Grok CLI reads skills from [`.grok/skills/`](https://docs.x.ai/build/features/skills-plugins-marketplaces):
+Cinch's Grok adapter targets [`.grok/skills/`](https://docs.x.ai/build/features/skills-plugins-marketplaces):
 
 - **Global:** `~/.grok/skills/<name>/SKILL.md`
-- **Project-local:** `<worktree>/.grok/skills/<name>/SKILL.md` (walked up to the repo root)
+- **Project-local:** `<worktree>/.grok/skills/<name>/SKILL.md`
 
 Each skill is a folder with `SKILL.md` YAML frontmatter. Cinch emits `name`, `description`,
 optional `paths`, and Grok-native extras (`when-to-use`, `allowed-tools`, `argument-hint`,
@@ -338,23 +339,25 @@ cinch init --from-dir examples/skills --harness cursor,copilot --yes
 
 ---
 
-## ⚡ Blistering Performance
+## ⚡ Local Performance Benchmark
 
-Cinch is written in pure, dependency-light Python and designed for microsecond-scale execution. Running the included benchmark suite (`benchmark/run.py`):
+The included [benchmark](benchmark/run.py) measures frontmatter parsing, rendering
+across registered adapters, and plan resolution plus disk writes using sets of 10,
+50, and 100 synthetic skills:
 
-| Operation | Throughput | Latency |
-| :--- | ---: | ---: |
-| **Frontmatter Parsing** | **245,000+** skills/s | **4.0 µs** |
-| **11-Dialect Translation** | **500,000+** dialects/s | **0.02 ms** / skill |
-| **End-to-End Plan & Disk Wire** | **800+** skills/s | **1.2 ms** / skill |
+```bash
+uv run python benchmark/run.py
+```
 
-Zero perceptible lag in your CLI or agent loops.
+Results depend on hardware, filesystem, and skill contents. These measurements cover
+local file processing, not model inference or end-to-end client performance.
 
 ---
 
 ## 🧱 Architecture: The 3-Stage Pipeline
 
-Cinch never performs direct, naive file copying between disparate tools. Instead, it processes assets through a clean, verifiable translation pipeline:
+Cinch parses source documents, renders target files, and applies a write plan.
+Some formats pass through unchanged; support files and same-harness hooks are copied.
 
 ```
 ┌─────────────────────────┐
@@ -373,13 +376,13 @@ Cinch never performs direct, naive file copying between disparate tools. Instead
              │ apply_plan()
              ▼
 ┌─────────────────────────┐
-│  Verified Project Files │ + .cinch.json execution audit manifest
+│ Generated Project Files│ + .cinch.json write-outcome manifest
 └─────────────────────────┘
 ```
 
 ### The Inline vs. Pointer Rule
-- **Inline by default:** The skill body is written directly into the target's native file with correctly translated frontmatter.
-- **Pointer when limits or assets require it:** If a skill exceeds documented per-file limit (e.g., Windsurf's 12,000 character rule threshold) or bundles supporting scripts (`scripts/`, `references/`), Cinch copies the support directory to `.cinch/skills/<name>/` and creates a native adapter file pointing to it.
+- **Inline by default:** The skill body is written into the target file with the adapter's frontmatter mapping.
+- **Support files and pointers:** Native skill-folder adapters copy support files alongside `SKILL.md`. Other adapters can place supporting content under `.cinch/skills/<name>/` and emit a pointer, including when the Windsurf adapter's 12,000-character threshold is exceeded.
 
 ---
 
@@ -399,16 +402,16 @@ cinch install gh:my-org/skills@v1.0.0 --enforce-policy
 ```
 
 - Inspects licenses, executable scripts, and unsafe path/symlink escapes **without executing repository code**.
-- Supports source allow/deny lists, immutable ref enforcement (`v1.0.0` or commit SHA), and human review gates for scripts (`--reviewed`).
+- Supports source allow/deny lists, ref requirements (a SemVer tag or commit SHA), and human review gates for scripts (`--reviewed`). Tags can move; use a commit SHA when pinning source content.
 - Read the full [Trust Policy Guide](docs/trust-policy.md).
 
 ---
 
-## 🛡️ Trust & Safety Guarantees
+## 🛡️ File Handling and Network Use
 
-- 🔒 **100% Local-First:** Runs entirely on your local machine. No telemetry, no cloud dependencies, no network requests.
-- 🛡️ **Zero Destructive Overwrites:** Existing hand-crafted rule files are never silently replaced (`outcome: "exists"`).
-- 📝 **Verifiable Manifest:** Every run updates `.cinch.json` with an exact audit trail of files written, merged, or skipped.
+- **Local translation:** Inventory, preview, and init can work with local files. Remote-source audit, install, and update operations can clone or fetch repositories; package installation also requires network access unless cached.
+- **Existing files:** Normal init skips differing existing files (`outcome: "exists"`). Adapter-specific configuration merges and explicit update/watch operations can change files; review the generated plan and diff.
+- **Write manifest:** Applying a plan outside dry-run mode writes `.cinch.json` with the latest file outcomes and skipped items. It is a write record, not a record of agent execution.
 
 ---
 
